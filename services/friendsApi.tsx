@@ -1,7 +1,7 @@
 import { clearToken, getToken } from "@/constants/tokens";
 
 export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://192.168.0.100:8080";
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://147.175.163.80:8080";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
