@@ -10,8 +10,8 @@ import {
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { authApi } from "@/constants/api";
 import { getToken, saveToken } from "@/constants/tokens";
+import { authApi } from "@/services/api";
 import { useAppState } from "@/state/AppState";
 
 type LoginPayload = {
@@ -52,9 +52,9 @@ if (!token) {
 }
 
 await saveToken(token);
-console.log("SAVED TOKEN?", await getToken()); // має вивести строку токена
-setMyUsername(username.trim());   // або що ти вводиш в інпут
-setAdminMode(false);              // щоб перестав бути mock режим
+console.log("SAVED TOKEN?", await getToken()); 
+setMyUsername(username.trim());
+setAdminMode(false);      
 
 router.replace("/friends");
 

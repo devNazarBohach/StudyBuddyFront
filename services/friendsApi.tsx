@@ -59,13 +59,13 @@ async function httpJson<T>(
     ...(opts?.headers ?? {}),
   };
 
-  // ---- JWT from storage (NOT memory) ----
+  //JWT from storage
   const token = await getToken();
   if (!token) throw new ApiError("No token. Login again.");
 
   headers.Authorization = `Bearer ${token}`;
 
-  // ---- body handling ----
+  //body handling
   let body = opts?.body;
   const isFormData = typeof FormData !== "undefined" && body && body instanceof FormData;
 
@@ -78,7 +78,6 @@ async function httpJson<T>(
     }
   }
 
-  // DEBUG (можеш прибрати потім)
   console.log("FETCH", opts?.method ?? "GET", url);
 
   const res = await fetch(url, {
@@ -184,7 +183,6 @@ async getFriends(): Promise<FriendshipDTO[]> {
     const data = unwrapData<FriendshipDTO[]>(raw) ?? [];
 
     console.log("DATA /user/friends =", JSON.stringify(data, null, 2));
-    // тут ти побачиш createdAt з бекенда
 
     return data;
   } catch (e) {

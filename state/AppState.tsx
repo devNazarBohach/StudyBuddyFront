@@ -9,12 +9,12 @@ export type Friend = {
 export type FriendRequest = {
   id: string;
   requester_username: string;
-  addressee_username: string; // ✅ виправив назву (2 d)
+  addressee_username: string;
   createdAt?: number;
 };
 
 type AppState = {
-  adminMode: boolean; // true = мок (без бекенду), false = реальні запити на бек
+  adminMode: boolean;
   setAdminMode: (v: boolean) => void;
 
   myUsername: string;
@@ -46,7 +46,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [adminMode, setAdminMode] = useState(false);
   const [myUsername, setMyUsername] = useState("meteor_destroyer");
 
-  // мок-дані (для тесту без бекенда)
   const [friends, setFriends] = useState<Friend[]>([
     { username: "meteor_destroyer", displayName: "Andrii" },
   ]);
@@ -94,7 +93,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (!adr || adr === myUsername) return;
 
       if (adminMode) {
-        // мок: додаємо outgoing
         if (outgoingRequests.some((r) => r.addressee_username === adr)) return;
         setOutgoingRequests((prev) => [
           { id: uid(), requester_username: myUsername, addressee_username: adr },
@@ -104,15 +102,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       }
       const accepted = await friendsApi.getFriends();
 
-    // Маппимо DTO -> твій Friend тип
     setFriends(
       accepted.map((f) => ({
         username: f.username,
-        displayName: f.username, // поки немає профілю — displayName = username
+        displayName: f.username,
       }))
     );
 
-      // ✅ Реальний бекенд: POST /user/make_request
     await friendsApi.makeRequest(adr);
         await refreshAll();
       }
@@ -133,7 +129,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // ⚠️ На бекенді ще нема accept endpoint
       throw new Error("acceptFriendRequest: backend endpoint not implemented yet");
     }
 
@@ -143,7 +138,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // ⚠️ На бекенді ще нема decline endpoint
       throw new Error("declineFriendRequest: backend endpoint not implemented yet");
     }
 
@@ -156,7 +150,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // ⚠️ На бекенді ще нема removeFriend endpoint
       throw new Error("removeFriend: backend endpoint not implemented yet");
     }
 
@@ -189,7 +182,7 @@ function mapRequest(dto: any): FriendRequest {
   return {
     id: String(dto.id),
     requester_username: dto.requester_username,
-    addressee_username: dto.addressee_username, // ✅ 2 d
+    addressee_username: dto.addressee_username,
     createdAt: dto.createdAt,
   };
 }

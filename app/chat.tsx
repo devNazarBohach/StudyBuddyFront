@@ -34,7 +34,6 @@ export default function ChatScreen() {
   );
 
   useEffect(() => {
-    // auto scroll to bottom on new message
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
   }, [sorted.length]);
 
@@ -45,8 +44,7 @@ export default function ChatScreen() {
     setMessages((prev) => [
       ...prev,
       { id: uid(), text: t, ts: Date.now(), fromMe: true },
-      // simple bot-like auto reply (optional)
-      { id: uid(), text: "✅ delivered (mock)", ts: Date.now() + 200, fromMe: false },
+      { id: uid(), text: "delivered (mock)", ts: Date.now() + 200, fromMe: false },
     ]);
 
     setText("");
@@ -55,7 +53,6 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ThemedView style={styles.container}>
-        {/* Header */}
         <ThemedView style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <ThemedText style={{ fontWeight: "700" }}>‹</ThemedText>
@@ -67,7 +64,6 @@ export default function ChatScreen() {
           </ThemedView>
         </ThemedView>
 
-        {/* Messages */}
         <FlatList
           ref={listRef}
           data={sorted}
@@ -83,7 +79,6 @@ export default function ChatScreen() {
           )}
         />
 
-        {/* Composer */}
         <ThemedView style={styles.composer}>
           <TextInput
             value={text}

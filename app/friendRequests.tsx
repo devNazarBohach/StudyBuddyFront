@@ -1,12 +1,11 @@
-import { friendsApi } from "@/constants/api";
+import { friendsApi } from "@/services/api";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-// Підлаштуй під свій DTO, якщо поля трохи інші
 type FriendshipDTO = {
   id?: number;
-  username: string;         // для incoming/outgoing бекенд повертає "username" (інша сторона)
+  username: string;
   status?: string;
   createdAt?: string;
 };
@@ -28,7 +27,6 @@ export default function FriendRequestsScreen() {
       if (!incRes.ok) throw new Error(incRes.data?.message ?? `Incoming HTTP ${incRes.status}`);
       if (!outRes.ok) throw new Error(outRes.data?.message ?? `Outgoing HTTP ${outRes.status}`);
 
-      // бекенд може повертати або масив напряму, або { message, token, ... }
       const inc = Array.isArray(incRes.data) ? incRes.data : (incRes.data?.data ?? incRes.data?.friendships ?? []);
       const out = Array.isArray(outRes.data) ? outRes.data : (outRes.data?.data ?? outRes.data?.friendships ?? []);
 

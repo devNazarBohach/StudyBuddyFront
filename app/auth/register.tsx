@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { authApi } from "../../constants/api";
+import { authApi } from "../../services/api";
 
 type RegisterPayload = {
   email: string;

@@ -1,4 +1,4 @@
-import { clearToken, getToken } from "./tokens";
+import { clearToken, getToken } from "../constants/tokens";
 
 export const API_BASE_URL =
   "http://147.175.163.80:8080";
@@ -29,7 +29,6 @@ async function request(path: string, options: RequestInit = {}, withAuth = false
     data = text;
   }
 
-  // якщо 401 — чистимо токен
   if (res.status === 401) {
     await clearToken();
     throw new Error("Unauthorized (401). Please login again.");
@@ -52,7 +51,7 @@ export const friendsApi = {
       "/user/make_request",
       { method: "POST", body: JSON.stringify({ addressee_username }) },
       true
-    ),
+  ),
 
   incoming: () =>
     request("/user/friend-requests/incoming", { method: "GET" }, true),
