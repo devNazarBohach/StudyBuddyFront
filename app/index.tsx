@@ -4,6 +4,7 @@ import { Pressable, StyleSheet } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 
+
 export default function HomeAuthChoiceScreen() {
   return (
     <ThemedView style={styles.container}>
@@ -15,11 +16,11 @@ export default function HomeAuthChoiceScreen() {
         Choose how you want to continue
       </ThemedText>
 
-      <Pressable style={styles.primaryBtn} onPress={() => router.push("../(auth)/login")}>
+      <Pressable style={styles.primaryBtn} onPress={() => router.push("../auth/login")}>
         <ThemedText style={styles.primaryBtnText}>Login</ThemedText>
       </Pressable>
 
-      <Pressable style={styles.secondaryBtn} onPress={() => router.push("../(auth)/register")}>
+      <Pressable style={styles.secondaryBtn} onPress={() => router.push("../auth/register")}>
         <ThemedText style={styles.secondaryBtnText}>Create account</ThemedText>
       </Pressable>
 
