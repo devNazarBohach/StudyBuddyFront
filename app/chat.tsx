@@ -60,7 +60,7 @@ export default function ChatScreen() {
 
           <ThemedView style={{ flex: 1 }}>
             <ThemedText style={styles.title}>@{peer}</ThemedText>
-            <ThemedText style={styles.subtitle}>online (mock)</ThemedText>
+            <ThemedText style={styles.subtitle}>online</ThemedText>
           </ThemedView>
         </ThemedView>
 
@@ -89,7 +89,7 @@ export default function ChatScreen() {
             multiline
           />
 
-          <Pressable onPress={send} style={styles.sendBtn}>
+          <Pressable onPress={() => router.push({ pathname: "/chat", params: { username: f.username } })}>
             <ThemedText style={{ color: "white", fontWeight: "700" }}>Send</ThemedText>
           </Pressable>
         </ThemedView>

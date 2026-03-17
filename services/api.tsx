@@ -1,7 +1,7 @@
 import { clearToken, getToken } from "../constants/tokens";
 
 export const API_BASE_URL =
-  "http://147.175.160.108:8080";
+  "http://10.125.6.19:8080";
   //"http://147.175.160.221:8080";
 
 async function request(path: string, options: RequestInit = {}, withAuth = false) {
@@ -36,6 +36,65 @@ async function request(path: string, options: RequestInit = {}, withAuth = false
 
   return { ok: res.ok, status: res.status, data };
 }
+
+export type RoomDTO = {
+  id: number;
+  roomType?: "DIRECT" | "GROUP";
+  directKey?: string;
+  title?: string;
+  unread?: number; 
+};
+
+export type MessageDTO = {
+  content: string;
+  messageType?: string;
+  senderUsername: string;
+};
+
+async function authedFetch(path: string, options: RequestInit = {}) {
+  const token = await getToken();
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers ?? {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  const json = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(json?.message || json?.error || `HTTP ${res.status}`);
+  }
+  return json?.data ?? json;
+}
+
+export const roomsApi = {
+  listDirectRooms: async (): Promise<RoomDTO[]> => {
+    return await authedFetch("/room/direct-rooms", { method: "GET" });
+  },
+
+  createDirect: async (username: string): Promise<RoomDTO> => {
+    return await authedFetch("/room/create-direct", {
+      method: "GET",
+      body: JSON.stringify({ username }),
+    });
+  },
+
+  enterRoom: async (roomId: number): Promise<MessageDTO[]> => {
+    return await authedFetch("/room/enter", {
+      method: "GET",
+      body: JSON.stringify({ id: String(roomId) }),
+    });
+  },
+
+  markRead: async (roomId: number): Promise<string> => {
+    return await authedFetch("/room/read", {
+      method: "POST",
+      body: JSON.stringify({ id: String(roomId) }),
+    });
+  },
+};
 
 export const authApi = {
   register: (payload: { email: string; username: string; password: string }) =>
