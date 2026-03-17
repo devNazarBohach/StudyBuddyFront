@@ -2,6 +2,7 @@ import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 
+import BottomNav from "@/components/BottomNav";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useAppState } from "@/state/AppState";
@@ -103,7 +104,7 @@ useFocusEffect(
         </ThemedView>
       ))}
 
-      <FakeBottomNav />
+      <BottomNav />
     </ThemedView>
   );
 }
