@@ -1,8 +1,7 @@
 import { clearToken, getToken } from "../constants/tokens";
 
-export const API_BASE_URL =
-  //"http://10.125.6.19:8080";
-  "http://10.10.9.22:8080";
+import { API_BASE_URL } from "@/constants/api";
+
 
 async function request(path: string, options: RequestInit = {}, withAuth = false) {
   const headers: Record<string, string> = {
