@@ -5,6 +5,8 @@ import { Alert, Pressable, StyleSheet, View } from "react-native";
 import BottomNav from "@/components/BottomNav";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { API_BASE_URL } from "@/constants/api";
+import { getToken } from "@/constants/tokens";
 import { useAppState } from "@/state/AppState";
 
 function Avatar({ letter }: { letter: string }) {
@@ -13,6 +15,46 @@ function Avatar({ letter }: { letter: string }) {
       <ThemedText style={{ fontWeight: "700" }}>{letter}</ThemedText>
     </View>
   );
+}
+
+async function createDirectRoom(username: string) {
+  const token = await getToken();
+
+  console.log("TOKEN:", token);
+  console.log("API_BASE_URL:", API_BASE_URL);
+  console.log("USERNAME TO OPEN CHAT:", username);
+
+  const res = await fetch(`${API_BASE_URL}/room/create-direct`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ username }),
+  });
+
+  const text = await res.text();
+  console.log("CREATE DIRECT ROOM STATUS:", res.status);
+  console.log("CREATE DIRECT ROOM RAW RESPONSE:", text);
+
+  let data;
+  try {
+    data = JSON.parse(text);
+    console.log("CREATE DIRECT ROOM PARSED JSON:", data);
+    console.log("CREATE DIRECT ROOM PARSED JSON PRETTY:", JSON.stringify(data, null, 2));
+  } catch {
+    throw new Error(`Server returned non-JSON: ${text}`);
+  }
+
+  if (!res.ok) {
+    throw new Error(data?.message || `HTTP ${res.status}`);
+  }
+
+  if (!data?.success) {
+    throw new Error(data?.message || "Failed to create direct room");
+  }
+
+  return data.data;
 }
 
 function FakeBottomNav() {
@@ -29,13 +71,39 @@ function FakeBottomNav() {
 
 export default function FriendsScreen() {
   const { friends, removeFriend, refreshAll, adminMode } = useAppState();
-  const [list, setList] = useState<{username: string; displayName: string}[]>([]);
-useFocusEffect(
-  useCallback(() => {
-    refreshAll().catch((e) => console.log("AUTO REFRESH ERROR", e));
-  }, [refreshAll])
-);
+  const [loadingUsername, setLoadingUsername] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshAll().catch((e) => console.log("AUTO REFRESH ERROR", e));
+    }, [refreshAll])
+  );
+
+const openDirectChat = async (username: string) => {
+  try {
+    console.log("OPEN CHAT CLICKED:", username);
+    setLoadingUsername(username);
+
+    const room = await createDirectRoom(username);
+    console.log("ROOM CREATED/FOUND:", room);
+
+    router.push({
+      pathname: "/chat",
+      params: {
+        roomId: String(room.id),
+        username,
+      },
+    });
+  } catch (e: any) {
+    console.log("CREATE ROOM ERROR FULL:", e);
+    Alert.alert("Error", e?.message ?? "Cannot create direct room");
+  } finally {
+    setLoadingUsername(null);
+  }
+};
+
   console.log("FRIENDS IN UI:", friends);
+
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title">Friends</ThemedText>
@@ -51,27 +119,35 @@ useFocusEffect(
       </Pressable>
 
       {friends.length === 0 ? (
-        <ThemedText style={{ opacity: 0.7 }}>No friends yet. Accept a request first.</ThemedText>
+        <ThemedText style={{ opacity: 0.7 }}>
+          No friends yet. Accept a request first.
+        </ThemedText>
       ) : null}
 
       <Pressable
-  style={styles.sectionBtn}
-  onPress={async () => {
-    try {
-      console.log("REFRESH CLICK");
-      await refreshAll();
-      Alert.alert("OK", "Refreshed");
-    } catch (e: any) {
-      console.log("REFRESH ERROR", e);
-      Alert.alert("Refresh error", e?.message ?? JSON.stringify(e));
-    }
-  }}
->
-  <ThemedText style={{ fontWeight: "600" }}>Refresh</ThemedText>
-</Pressable>
+        style={styles.sectionBtn}
+        onPress={async () => {
+          try {
+            console.log("REFRESH CLICK");
+            await refreshAll();
+            Alert.alert("OK", "Refreshed");
+          } catch (e: any) {
+            console.log("REFRESH ERROR", e);
+            Alert.alert("Refresh error", e?.message ?? JSON.stringify(e));
+          }
+        }}
+      >
+        <ThemedText style={{ fontWeight: "600" }}>Refresh</ThemedText>
+      </Pressable>
+
       <ThemedText style={{ opacity: 0.7 }}>friends count: {friends.length}</ThemedText>
+
       {friends.map((f) => (
-        <ThemedView key={f.username} style={styles.card}>
+        <Pressable
+          key={f.username}
+          style={styles.card}
+          onPress={() => openDirectChat(f.username)}
+        >
           <ThemedView style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
             <Avatar letter={(f.displayName?.[0] ?? f.username[0] ?? "?").toUpperCase()} />
             <ThemedView style={{ flex: 1 }}>
@@ -83,12 +159,11 @@ useFocusEffect(
           <ThemedView style={styles.rowBtns}>
             <Pressable
               style={styles.lightBtn}
-              onPress={() => router.push({
-                pathname: "/chat",
-                params: { username: f.username },
-              })}
+              onPress={() => openDirectChat(f.username)}
             >
-              <ThemedText>message</ThemedText>
+              <ThemedText>
+                {loadingUsername === f.username ? "opening..." : "message"}
+              </ThemedText>
             </Pressable>
 
             <Pressable
@@ -99,7 +174,10 @@ useFocusEffect(
                   {
                     text: "Remove",
                     style: "destructive",
-                    onPress: () => removeFriend(f.username).catch((e) => Alert.alert("Error", e.message)),
+                    onPress: () =>
+                      removeFriend(f.username).catch((e) =>
+                        Alert.alert("Error", e.message)
+                      ),
                   },
                 ])
               }
@@ -107,7 +185,7 @@ useFocusEffect(
               <ThemedText>remove</ThemedText>
             </Pressable>
           </ThemedView>
-        </ThemedView>
+        </Pressable>
       ))}
 
       <BottomNav />
@@ -135,10 +213,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  card: { borderWidth: 1, borderColor: "#ddd", borderRadius: 12, padding: 12, gap: 10 },
-  avatar: { width: 44, height: 44, borderRadius: 999, backgroundColor: "#e0e0e0", alignItems: "center", justifyContent: "center" },
+  card: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
+  },
+
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    backgroundColor: "#e0e0e0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   rowBtns: { flexDirection: "row", gap: 10 },
-  lightBtn: { flex: 1, height: 40, borderRadius: 10, backgroundColor: "#e6e6e6", alignItems: "center", justifyContent: "center" },
+
+  lightBtn: {
+    flex: 1,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "#e6e6e6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
   bottomNav: {
     position: "absolute",
@@ -154,6 +255,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     paddingHorizontal: 10,
   },
-  navItem: { width: 34, height: 34, borderRadius: 8, backgroundColor: "#f0f0f0" },
-  navItemActive: { borderWidth: 2, borderColor: "#111", backgroundColor: "#e6e6e6" },
+
+  navItem: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: "#f0f0f0",
+  },
+
+  navItemActive: {
+    borderWidth: 2,
+    borderColor: "#111",
+    backgroundColor: "#e6e6e6",
+  },
 });
