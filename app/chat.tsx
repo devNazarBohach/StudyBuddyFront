@@ -89,7 +89,7 @@ export default function ChatScreen() {
             multiline
           />
 
-          <Pressable onPress={() => router.push({ pathname: "/chat", params: { username: f.username } })}>
+          <Pressable onPress={send} style={styles.sendBtn}>
             <ThemedText style={{ color: "white", fontWeight: "700" }}>Send</ThemedText>
           </Pressable>
         </ThemedView>
@@ -131,10 +131,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e2e2e2",
   },
-  bubbleMe: { alignSelf: "flex-end", backgroundColor: "#111" },
-  bubbleThem: { alignSelf: "flex-start", backgroundColor: "#fff" },
+  bubbleMe: { alignSelf: "flex-end", backgroundColor: "#0000FF " },
+  bubbleThem: { alignSelf: "flex-start", backgroundColor: "#6960EC" },
 
-  bubbleText: { color: "#000" },
+  bubbleText: { color: "#fff" },
   time: { opacity: 0.6, marginTop: 6, fontSize: 12 },
 
   composer: {

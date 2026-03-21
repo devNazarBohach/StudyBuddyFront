@@ -81,7 +81,13 @@ useFocusEffect(
           </ThemedView>
 
           <ThemedView style={styles.rowBtns}>
-            <Pressable style={styles.lightBtn} onPress={() => router.push({ pathname: "/chat", params: { peer: f.username } })}>
+            <Pressable
+              style={styles.lightBtn}
+              onPress={() => router.push({
+                pathname: "/chat",
+                params: { username: f.username },
+              })}
+            >
               <ThemedText>message</ThemedText>
             </Pressable>
 
