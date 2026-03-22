@@ -76,14 +76,14 @@ export const roomsApi = {
 
   createDirect: async (username: string): Promise<RoomDTO> => {
     return await authedFetch("/room/create-direct", {
-      method: "GET",
+      method: "POST",
       body: JSON.stringify({ username }),
     });
   },
 
   enterRoom: async (roomId: number): Promise<MessageDTO[]> => {
     return await authedFetch("/room/enter", {
-      method: "GET",
+      method: "POST",
       body: JSON.stringify({ id: String(roomId) }),
     });
   },
