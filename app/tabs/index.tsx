@@ -31,6 +31,7 @@ export default function HomeAuthChoiceScreen() {
   );
 }
 
+
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, justifyContent: "center", gap: 12 },
   title: { marginBottom: 4 },

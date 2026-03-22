@@ -1,31 +1,71 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ThemedText } from "./themed-text";
 
 export default function BottomNav() {
   const router = useRouter();
+  const pathname = usePathname();
+
+  const isActive = (route: string) => pathname === route;
 
   return (
     <View style={styles.container}>
       <Pressable style={styles.btn} onPress={() => router.push("/tabs")}>
-        <Ionicons name="home-outline" size={24} />
-        <ThemedText>Home</ThemedText>
+        <Ionicons
+          name={isActive("/tabs") ? "home" : "home-outline"}
+          size={24}
+          color="#111"
+        />
+        <ThemedText style={styles.label}>Home</ThemedText>
       </Pressable>
 
-      <Pressable style={styles.btn} onPress={() => router.push("/tabs/Chats")}>
-        <Ionicons name="chatbubble-outline" size={24} />
-        <ThemedText>Chats</ThemedText>
+      <Pressable style={styles.btn} onPress={() => router.push("/chats")}>
+        <Ionicons
+          name={isActive("/chats") ? "chatbubble" : "chatbubble-outline"}
+          size={24}
+          color="#111"
+        />
+        <ThemedText style={styles.label}>Chats</ThemedText>
+      </Pressable>
+
+      <Pressable style={styles.btn} onPress={() => router.push("/blog")}>
+        <Ionicons
+          name={isActive("/blog") ? "newspaper" : "newspaper-outline"}
+          size={24}
+          color="#111"
+        />
+        <ThemedText style={styles.label}>Blog</ThemedText>
+      </Pressable>
+
+      <Pressable style={styles.btn} onPress={() => router.push("/nearby")}>
+        <Ionicons
+          name={isActive("/nearby") ? "map" : "map-outline"}
+          size={24}
+          color="#111"
+        />
+        <ThemedText style={styles.label}>Nearby</ThemedText>
       </Pressable>
 
       <Pressable style={styles.btn} onPress={() => router.push("/friends")}>
-        <Ionicons name="people-outline" size={24} />
-        <ThemedText>Friends</ThemedText>
+        <Ionicons
+          name={isActive("/friends") ? "people" : "people-outline"}
+          size={24}
+          color="#111"
+        />
+        <ThemedText style={styles.label}>Friends</ThemedText>
       </Pressable>
 
-      <Pressable style={styles.btn} onPress={() => router.push("/tabs/settings")}>
-        <Ionicons name="settings-outline" size={24} />
-        <ThemedText>Settings</ThemedText>
+      <Pressable
+        style={styles.btn}
+        onPress={() => router.push("/tabs/settings")}
+      >
+        <Ionicons
+          name={isActive("/tabs/settings") ? "settings" : "settings-outline"}
+          size={24}
+          color="#111"
+        />
+        <ThemedText style={styles.label}>Settings</ThemedText>
       </Pressable>
     </View>
   );
@@ -34,18 +74,24 @@ export default function BottomNav() {
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    bottom: 0,
     left: 0,
     right: 0,
-    height: 70,
-    flexDirection: "row",
+    bottom: 0,
+    height: 78,
+    backgroundColor: "#fff",
     borderTopWidth: 1,
-    borderColor: "#ddd",
-    backgroundColor: "white",
+    borderTopColor: "#ddd",
+    flexDirection: "row",
+    paddingTop: 6,
+    paddingBottom: 8,
   },
   btn: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  label: {
+    fontSize: 11,
+    marginTop: 2,
   },
 });
