@@ -1,4 +1,5 @@
 import { saveToken } from "@/constants/tokens";
+import { authApi } from "@/services";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -10,7 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { authApi } from "../../services/api";
+
 
 type RegisterPayload = {
   email: string;
@@ -61,7 +62,7 @@ async function onRegister() {
     await saveToken(token);
 
     Alert.alert("Success", "Registered successfully");
-    router.replace("/friends"); 
+    router.replace("/tabs/friends"); 
   } catch (e: any) {
     Alert.alert("Network error", e?.message ?? "Unknown error");
   } finally {

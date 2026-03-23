@@ -11,7 +11,7 @@ import {
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { getToken, saveToken } from "@/constants/tokens";
-import { authApi } from "@/services/api";
+import { authApi } from "@/services";
 import { useAppState } from "@/state/AppState";
 
 type LoginPayload = {
@@ -56,10 +56,10 @@ console.log("SAVED TOKEN?", await getToken());
 setMyUsername(username.trim());
 setAdminMode(false);      
 
-router.replace("/friends");
+router.replace("/tabs/friends");
 
 Alert.alert("Success", "Logged in");
-router.replace("/friends");
+router.replace("/tabs/friends");
   } catch (e: any) {
     Alert.alert("Network error", e?.message ?? "Unknown error");
   } finally {

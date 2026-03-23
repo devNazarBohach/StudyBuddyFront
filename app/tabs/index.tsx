@@ -16,15 +16,15 @@ export default function HomeAuthChoiceScreen() {
         Choose how you want to continue
       </ThemedText>
 
-      <Pressable style={styles.primaryBtn} onPress={() => router.push("../auth/login")}>
+      <Pressable style={styles.primaryBtn} onPress={() => router.push("/auth/login")}>
         <ThemedText style={styles.primaryBtnText}>Login</ThemedText>
       </Pressable>
 
-      <Pressable style={styles.secondaryBtn} onPress={() => router.push("../auth/register")}>
+      <Pressable style={styles.secondaryBtn} onPress={() => router.push("/auth/register")}>
         <ThemedText style={styles.secondaryBtnText}>Create account</ThemedText>
       </Pressable>
 
-      <Pressable style={styles.adminBtn} onPress={() => router.replace("/friends")}>
+      <Pressable style={styles.adminBtn} onPress={() => router.replace("/tabs/friends")}>
         <ThemedText style={styles.adminBtnText}>Enter as admin</ThemedText>
       </Pressable>
     </ThemedView>

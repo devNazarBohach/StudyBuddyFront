@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "@/constants/api";
-import { getToken } from "@/constants/tokens"; // або де у тебе лежить
+import { getToken } from "@/constants/tokens";
 
 export async function updateUserSetting(key: string, value: boolean) {
   const token = await getToken();

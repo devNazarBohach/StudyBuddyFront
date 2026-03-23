@@ -1,16 +1,16 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { API_BASE_URL } from "@/constants/api";
-import { getToken } from "@/constants/tokens"; // зміни шлях, якщо твій файл лежить не тут
+import { getToken } from "@/constants/tokens";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Pressable,
-    StyleSheet,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
 } from "react-native";
 
 type RoomDTO = {
@@ -35,7 +35,7 @@ export default function CreateRoomScreen() {
     const name = groupName.trim();
 
     if (!name) {
-      Alert.alert("Помилка", "Введи назву групи");
+      Alert.alert("Error", "Please enter a group name");
       return;
     }
 
@@ -45,7 +45,7 @@ export default function CreateRoomScreen() {
       const token = await getToken();
 
       if (!token) {
-        Alert.alert("Помилка", "Токен не знайдено");
+        Alert.alert("Error", "Token not found");
         return;
       }
 
@@ -61,17 +61,17 @@ export default function CreateRoomScreen() {
       const result: ApiResponseWrapper<RoomDTO> = await response.json();
 
       if (!response.ok || !result.success || !result.data) {
-        Alert.alert("Помилка", result.message || "Не вдалося створити групу");
+        Alert.alert("Error", result.message || "Failed to create group");
         return;
       }
 
       router.replace({
-        pathname: "/chat",
+        pathname: "/screens/friends/chats/chat",
         params: { roomId: String(result.data.id) },
       });
     } catch (error) {
       console.log("create group error", error);
-      Alert.alert("Помилка", "Сталася помилка при створенні групи");
+      Alert.alert("Error", "An error occurred while creating the group");
     } finally {
       setLoading(false);
     }

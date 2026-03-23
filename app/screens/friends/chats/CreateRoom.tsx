@@ -1,6 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { roomsApi } from "@/services/api";
+import { roomApi } from "@/services";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import { Alert, Pressable, StyleSheet, TextInput } from "react-native";
@@ -15,8 +15,8 @@ export default function CreateChatScreen() {
 
     setLoading(true);
     try {
-      const room = await roomsApi.createDirect(u);
-      router.replace({ pathname: "/chat", params: { roomId: String(room.id) } });
+      const room = await roomApi.createDirect(u);
+      router.replace({ pathname: "/screens/friends/chats/chat", params: { roomId: String(room.id) } });
     } catch (e: any) {
       Alert.alert("Create chat error", e?.message ?? String(e));
     } finally {

@@ -88,7 +88,7 @@ const openDirectChat = async (username: string) => {
     console.log("ROOM CREATED/FOUND:", room);
 
     router.push({
-      pathname: "/chat",
+      pathname: "/screens/friends/chats/chat",
       params: {
         roomId: String(room.id),
         username,
@@ -108,13 +108,13 @@ const openDirectChat = async (username: string) => {
     <ThemedView style={styles.container}>
       <ThemedText type="title">Friends</ThemedText>
 
-      <Pressable style={styles.sectionBtn} onPress={() => router.push("../friendRequests")}>
+      <Pressable style={styles.sectionBtn} onPress={() => router.push("/screens/friends/friends/friendRequests")}>
         <ThemedText style={{ fontWeight: "600" }}>
           Friend requests {adminMode ? "(mock)" : "(backend)"}
         </ThemedText>
       </Pressable>
 
-      <Pressable style={styles.sectionBtn} onPress={() => router.push("../addFriend")}>
+      <Pressable style={styles.sectionBtn} onPress={() => router.push("/screens/friends/friends/addFriend")}>
         <ThemedText style={{ fontWeight: "600" }}>Add friend</ThemedText>
       </Pressable>
 

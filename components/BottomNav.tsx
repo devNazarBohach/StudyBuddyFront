@@ -20,36 +20,36 @@ export default function BottomNav() {
         <ThemedText style={styles.label}>Home</ThemedText>
       </Pressable>
 
-      <Pressable style={styles.btn} onPress={() => router.push("/chats")}>
+      <Pressable style={styles.btn} onPress={() => router.push("/tabs/chats")}>
         <Ionicons
-          name={isActive("/chats") ? "chatbubble" : "chatbubble-outline"}
+          name={isActive("/tabs/chats") ? "chatbubble" : "chatbubble-outline"}
           size={24}
           color="#111"
         />
         <ThemedText style={styles.label}>Chats</ThemedText>
       </Pressable>
 
-      <Pressable style={styles.btn} onPress={() => router.push("/blog")}>
+      <Pressable style={styles.btn} onPress={() => router.push("/tabs/blog")}>
         <Ionicons
-          name={isActive("/blog") ? "newspaper" : "newspaper-outline"}
+          name={isActive("/tabs/blog") ? "newspaper" : "newspaper-outline"}
           size={24}
           color="#111"
         />
         <ThemedText style={styles.label}>Blog</ThemedText>
       </Pressable>
 
-      <Pressable style={styles.btn} onPress={() => router.push("/nearby")}>
+      <Pressable style={styles.btn} onPress={() => router.push("/tabs/nearby")}>
         <Ionicons
-          name={isActive("/nearby") ? "map" : "map-outline"}
+          name={isActive("/tabs/nearby") ? "map" : "map-outline"}
           size={24}
           color="#111"
         />
         <ThemedText style={styles.label}>Nearby</ThemedText>
       </Pressable>
 
-      <Pressable style={styles.btn} onPress={() => router.push("/friends")}>
+      <Pressable style={styles.btn} onPress={() => router.push("/tabs/friends")}>
         <Ionicons
-          name={isActive("/friends") ? "people" : "people-outline"}
+          name={isActive("/tabs/friends") ? "people" : "people-outline"}
           size={24}
           color="#111"
         />

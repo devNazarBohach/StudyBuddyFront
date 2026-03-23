@@ -6,12 +6,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Pressable,
-    StyleSheet,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  View,
 } from "react-native";
 
 type RoomDTO = {
@@ -102,7 +102,7 @@ export default function ChatsTab() {
         style={styles.roomCard}
         onPress={() =>
           router.push({
-            pathname: "/chat",
+            pathname: "/screens/friends/chats/chat",
             params: { roomId: String(item.id) },
           })
         }
@@ -138,7 +138,7 @@ export default function ChatsTab() {
 
         <Pressable
           style={styles.plusBtn}
-          onPress={() => router.push("/CreateRoom")}
+          onPress={() => router.push("/screens/friends/chats/CreateRoom")}
         >
           <Ionicons name="add" size={28} color="#111" />
         </Pressable>
