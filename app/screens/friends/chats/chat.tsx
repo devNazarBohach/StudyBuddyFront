@@ -8,12 +8,11 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
+  KeyboardAvoidingView, PanResponder, Platform,
   Pressable,
   StyleSheet,
   TextInput,
-  View,
+  View
 } from "react-native";
 import SockJS from "sockjs-client";
 
@@ -274,6 +273,22 @@ export default function ChatScreen() {
     </View>
   );
 
+ const panResponder = useRef(
+  PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gestureState) => {
+      return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dy) < 20;
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      if (gestureState.dx < -80) {
+        router.push({
+          pathname: "/screens/friends/chats/members",
+          params: { roomId: String(room) },
+        });
+      }
+    },
+  })
+).current;
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -281,6 +296,11 @@ export default function ChatScreen() {
       keyboardVerticalOffset={Platform.OS === "ios" ? 20 : 0}
     >
       <ThemedView style={styles.container}>
+        <View
+        {...panResponder.panHandlers}
+         style={styles.swipeZone}
+          />
+
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#111" />
@@ -323,6 +343,14 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
+  swipeZone: {
+  position: "absolute",
+  top: 0,
+  right: 0,
+  width: 28,
+  height: "100%",
+  zIndex: 999,
+},
   container: {
     flex: 1,
     backgroundColor: "#f7f7f7",
