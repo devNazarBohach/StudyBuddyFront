@@ -1,7 +1,9 @@
+import BottomNav from "@/components/BottomNav";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
+import { InviteDTO, roomsApi } from "@/services/roomApi";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -18,12 +20,12 @@ type RoomDTO = {
   id: number;
   roomType?: "DIRECT" | "GROUP";
   directKey?: string | null;
-  title?: string | null;
+  message?: string | null;
   unread?: number;
 };
 
 function getRoomTitle(room: RoomDTO) {
-  if (room.title && room.title.trim() !== "") return room.title;
+  if (room.message && room.message.trim() !== "") return room.message;
   return `Room #${room.id}`;
 }
 
@@ -44,6 +46,7 @@ function getInitials(title: string) {
 
 export default function ChatsTab() {
   const [rooms, setRooms] = useState<RoomDTO[]>([]);
+  const [invites, setInvites] = useState<InviteDTO[]>([]);
   const [loading, setLoading] = useState(false);
 
   const loadRooms = useCallback(async () => {
@@ -83,14 +86,26 @@ export default function ChatsTab() {
     }
   }, []);
 
+  const loadInvites = useCallback(async () => {
+    try {
+      const data = await roomsApi.getMyInvites();
+      setInvites(data ?? []);
+    } catch (error) {
+      console.log("Failed to load invites", error);
+      setInvites([]);
+    }
+  }, []);
+
   useEffect(() => {
     loadRooms();
-  }, [loadRooms]);
+    loadInvites();
+  }, [loadRooms, loadInvites]);
 
   useFocusEffect(
     useCallback(() => {
       loadRooms();
-    }, [loadRooms])
+      loadInvites();
+    }, [loadRooms, loadInvites])
   );
 
   const renderItem = ({ item }: { item: RoomDTO }) => {
@@ -149,26 +164,55 @@ export default function ChatsTab() {
           <ActivityIndicator size="large" />
           <ThemedText style={styles.loadingText}>Loading chats...</ThemedText>
         </View>
-      ) : rooms.length === 0 ? (
-        <View style={styles.emptyBox}>
-          <Ionicons name="chatbubble-ellipses-outline" size={44} color="#999" />
-          <ThemedText style={styles.emptyTitle}>No chats yet</ThemedText>
-          <ThemedText style={styles.emptySubtitle}>
-            Create a group or direct room to start chatting
-          </ThemedText>
-        </View>
       ) : (
-        <FlatList
-          data={rooms}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshing={loading}
-          onRefresh={loadRooms}
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-        />
+        <>
+          <Pressable
+            style={styles.invitesCard}
+            onPress={() => router.push("/screens/friends/chats/groupInvites")}
+          >
+            <View style={styles.invitesIconWrap}>
+              <Ionicons name="people-outline" size={28} color="#222" />
+            </View>
+
+            <View style={styles.invitesInfo}>
+              <ThemedText style={styles.invitesTitle}>Group invitations</ThemedText>
+              <ThemedText style={styles.invitesSubtitle}>
+                {invites.length} pending invite{invites.length === 1 ? "" : "s"}
+              </ThemedText>
+            </View>
+
+            <View style={styles.invitesBadge}>
+              <ThemedText style={styles.invitesBadgeText}>{invites.length}</ThemedText>
+            </View>
+          </Pressable>
+
+          {rooms.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <Ionicons name="chatbubble-ellipses-outline" size={44} color="#999" />
+              <ThemedText style={styles.emptyTitle}>No chats yet</ThemedText>
+              <ThemedText style={styles.emptySubtitle}>
+                Create a group or direct room to start chatting
+              </ThemedText>
+            </View>
+          ) : (
+            <FlatList
+              data={rooms}
+              keyExtractor={(item) => String(item.id)}
+              renderItem={renderItem}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              refreshing={loading}
+              onRefresh={async () => {
+                await loadRooms();
+                await loadInvites();
+              }}
+              ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+            />
+          )}
+        </>
       )}
+
+      <BottomNav />
     </ThemedView>
   );
 }
@@ -200,7 +244,57 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   listContent: {
-    paddingBottom: 24,
+    paddingBottom: 110,
+  },
+  invitesCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  invitesIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#e4e4e4",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  invitesInfo: {
+    flex: 1,
+  },
+  invitesTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#111",
+    marginBottom: 2,
+  },
+  invitesSubtitle: {
+    fontSize: 13,
+    color: "#777",
+  },
+  invitesBadge: {
+    minWidth: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#5b5757",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    marginLeft: 10,
+  },
+  invitesBadgeText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
   },
   roomCard: {
     flexDirection: "row",
