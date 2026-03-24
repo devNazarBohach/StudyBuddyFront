@@ -338,6 +338,8 @@ export default function ChatScreen() {
           </Pressable>
         </View>
       </ThemedView>
+
+      
     </KeyboardAvoidingView>
   );
 }
