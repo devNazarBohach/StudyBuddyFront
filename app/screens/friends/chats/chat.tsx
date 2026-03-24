@@ -312,6 +312,17 @@ export default function ChatScreen() {
               {connected ? "connected" : "connecting..."}
             </ThemedText>
           </View>
+          <Pressable
+            onPress={() =>
+            router.push({
+            pathname: "/screens/friends/chats/group-management",
+            params: { roomId: String(room) },
+              })
+            }
+            style={styles.plusBtn}
+          >
+            <Ionicons name="add" size={24} color="#111" />
+          </Pressable>
         </View>
 
         <FlatList
@@ -345,6 +356,14 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
+  plusBtn: {
+  width: 40,
+  height: 40,
+  borderRadius: 12,
+  backgroundColor: "#ededed",
+  alignItems: "center",
+  justifyContent: "center",
+},
   swipeZone: {
   position: "absolute",
   top: 0,
@@ -353,6 +372,7 @@ const styles = StyleSheet.create({
   height: "100%",
   zIndex: 999,
 },
+
   container: {
     flex: 1,
     backgroundColor: "#f7f7f7",

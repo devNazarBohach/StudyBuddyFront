@@ -2,7 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  Alert,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Switch,
   TouchableOpacity,
@@ -13,9 +15,6 @@ import BottomNav from "@/components/BottomNav";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { updateUserSetting } from "@/services/settingsService";
-import { Alert } from "react-native";
-
-
 
 export default function SettingsScreen() {
   const [darkMode, setDarkMode] = useState(false);
@@ -41,78 +40,91 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ThemedView style={styles.container}>
-        <ThemedText type="title" style={styles.title}>
-          Settings
-        </ThemedText>
-
-        <View style={styles.profileCard}>
-          <View style={styles.avatar}>
-            <ThemedText style={styles.avatarText}>A</ThemedText>
-          </View>
-
-          <View style={styles.profileInfo}>
-            <ThemedText style={styles.profileName}>Account</ThemedText>
-            <ThemedText style={styles.profileRole}>
-              Role: student / teacher
-            </ThemedText>
-          </View>
-
-          <TouchableOpacity style={styles.editBtn}>
-            <Ionicons name="pencil-outline" size={18} color="#222" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
-          <SettingRow
-            icon="moon-outline"
-            title="Dark mode"
-            value={darkMode}
-            onChange={(value) =>
-              handleSettingChange("darkMode", value, setDarkMode, darkMode)
-            }
-          />
-
-          <SettingRow
-            icon="contrast-outline"
-            title="High contrast"
-            value={highContrast}
-            onChange={(value) =>
-              handleSettingChange(
-                "highContrast",
-                value,
-                setHighContrast,
-                highContrast
-              )
-            }
-          />
-
-          <SettingRow
-            icon="location-outline"
-            title="Share location"
-            value={shareLocation}
-            onChange={(value) =>
-              handleSettingChange(
-                "shareLocation",
-                value,
-                setShareLocation,
-                shareLocation
-              )
-            }
-          />
-        </View>
-
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="person-circle-outline" size={20} color="#222" />
-          <ThemedText style={styles.actionText}>Profile card</ThemedText>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.logoutButton]}
-          onPress={() => router.replace("/auth/login")}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons name="log-out-outline" size={20} color="#b42318" />
-          <ThemedText style={styles.logoutText}>Logout</ThemedText>
-        </TouchableOpacity>
+          <ThemedText type="title" style={styles.title}>
+            Settings
+          </ThemedText>
+
+          <View style={styles.profileCard}>
+            <View style={styles.avatar}>
+              <ThemedText style={styles.avatarText}>A</ThemedText>
+            </View>
+
+            <View style={styles.profileInfo}>
+              <ThemedText style={styles.profileName}>Account</ThemedText>
+              <ThemedText style={styles.profileRole}>
+                Role: student / teacher
+              </ThemedText>
+            </View>
+
+            <TouchableOpacity style={styles.editBtn}>
+              <Ionicons name="pencil-outline" size={18} color="#222" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.section}>
+            <SettingRow
+              icon="moon-outline"
+              title="Dark mode"
+              value={darkMode}
+              onChange={(value) =>
+                handleSettingChange("darkMode", value, setDarkMode, darkMode)
+              }
+            />
+
+            <SettingRow
+              icon="contrast-outline"
+              title="High contrast"
+              value={highContrast}
+              onChange={(value) =>
+                handleSettingChange(
+                  "highContrast",
+                  value,
+                  setHighContrast,
+                  highContrast
+                )
+              }
+            />
+
+            <SettingRow
+              icon="location-outline"
+              title="Share location"
+              value={shareLocation}
+              onChange={(value) =>
+                handleSettingChange(
+                  "shareLocation",
+                  value,
+                  setShareLocation,
+                  shareLocation
+                )
+              }
+            />
+          </View>
+
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => router.push("/tabs/scan-qr")}
+          >
+            <Ionicons name="qr-code-outline" size={20} color="#222" />
+            <ThemedText style={styles.actionText}>Scan QR</ThemedText>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionButton}>
+            <Ionicons name="person-circle-outline" size={20} color="#222" />
+            <ThemedText style={styles.actionText}>Profile card</ThemedText>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.logoutButton]}
+            onPress={() => router.replace("/auth/login")}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#b42318" />
+            <ThemedText style={styles.logoutText}>Logout</ThemedText>
+          </TouchableOpacity>
+        </ScrollView>
 
         <BottomNav />
       </ThemedView>
@@ -156,10 +168,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f6f7fb",
+  },
+
+  scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 90,
+    paddingBottom: 140,
   },
+
   title: {
     textAlign: "center",
     marginTop: 8,
@@ -285,10 +301,10 @@ const styles = StyleSheet.create({
 
   logoutButton: {
     backgroundColor: "#fff1f1",
-    marginTop: "auto",
+    marginTop: 6,
   },
   logoutText: {
-    color: "#b42318",
+    color: "#161515ff",
     fontSize: 17,
     fontWeight: "700",
   },
