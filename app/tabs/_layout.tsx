@@ -13,7 +13,7 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarStyle: { display: "none" }, // 🔥 ОЦЕ ДОДАЄШ
+        tabBarStyle: { display: "none" },
       }}
     >к
       <Tabs.Screen

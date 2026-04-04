@@ -173,7 +173,6 @@ export const friendsApi = {
     return unwrapData<FriendshipDTO[]>(raw) ?? [];
   },
 
-  // aliases for old screens
   async incoming() {
     const data = await this.getIncomingRequests();
     return { ok: true, status: 200, data };
