@@ -4,7 +4,12 @@ import { Stack } from "expo-router";
 export default function RootLayout() {
   return (
     <AppStateProvider>
-      <Stack initialRouteName="index" screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="auth" options={{ headerShown: false }} />
+        <Stack.Screen name="tabs" options={{ headerShown: false }} />
+        <Stack.Screen name="screens" options={{ headerShown: false }} />
+      </Stack>
     </AppStateProvider>
   );
 }

@@ -108,13 +108,13 @@ const openDirectChat = async (username: string) => {
     <ThemedView style={styles.container}>
       <ThemedText type="title">Friends</ThemedText>
 
-      <Pressable style={styles.sectionBtn} onPress={() => router.push("/screens/friends/friends/friendRequests")}>
+      <Pressable style={styles.sectionBtn} onPress={() => router.push("/screens/friends/chats/friendRequests")}>
         <ThemedText style={{ fontWeight: "600" }}>
           Friend requests {adminMode ? "(mock)" : "(backend)"}
         </ThemedText>
       </Pressable>
 
-      <Pressable style={styles.sectionBtn} onPress={() => router.push("/screens/friends/friends/addFriend")}>
+      <Pressable style={styles.sectionBtn} onPress={() => router.push("/screens/friends/chats/addFriend")}>
         <ThemedText style={{ fontWeight: "600" }}>Add friend</ThemedText>
       </Pressable>
 
