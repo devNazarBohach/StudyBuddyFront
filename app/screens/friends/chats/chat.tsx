@@ -3,10 +3,10 @@ import { ThemedView } from "@/components/themed-view";
 import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
 import { Ionicons } from "@expo/vector-icons";
-import { Client } from "@stomp/stompjs";
+import { Client, StompSubscription } from "@stomp/stompjs";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -59,9 +59,14 @@ type ChatMessage = {
 };
 
 type UploadPhotoResponse = {
-  fileUrl: string;
+  fileUrl?: string;
+  url?: string;
+  photoUrl?: string;
   fileName?: string;
+  name?: string;
+  photoName?: string;
   contentType?: string;
+  photoContentType?: string;
 };
 
 function uid() {
@@ -94,19 +99,18 @@ export default function ChatScreen() {
 
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const stompRef = useRef<Client | null>(null);
+  const subscriptionRef = useRef<StompSubscription | null>(null);
 
-  const sorted = useMemo(() => [...messages], [messages]);
-
-  const scrollToEnd = () => {
+  const scrollToEnd = useCallback(() => {
     setTimeout(() => {
       listRef.current?.scrollToEnd({ animated: true });
     }, 120);
-  };
+  }, []);
 
   const loadHistory = useCallback(async () => {
     try {
       const token = await getToken();
-      if (!token) return;
+      if (!token || !room) return;
 
       const response = await fetch(`${API_BASE_URL}/room/enter`, {
         method: "POST",
@@ -150,12 +154,12 @@ export default function ChatScreen() {
     } catch (e) {
       console.log("LOAD HISTORY ERROR", e);
     }
-  }, [room, myUsername]);
+  }, [room, myUsername, scrollToEnd]);
 
   const markAsRead = useCallback(async () => {
     try {
       const token = await getToken();
-      if (!token) return;
+      if (!token || !room) return;
 
       await fetch(`${API_BASE_URL}/room/read`, {
         method: "POST",
@@ -195,11 +199,38 @@ export default function ChatScreen() {
       markAsRead();
       scrollToEnd();
     },
-    [myUsername, markAsRead]
+    [myUsername, markAsRead, scrollToEnd]
   );
+
+  const disconnectWs = useCallback(async () => {
+    try {
+      subscriptionRef.current?.unsubscribe();
+      subscriptionRef.current = null;
+    } catch (e) {
+      console.log("UNSUBSCRIBE ERROR", e);
+    }
+
+    try {
+      if (stompRef.current) {
+        await stompRef.current.deactivate();
+        stompRef.current = null;
+      }
+    } catch (e) {
+      console.log("DEACTIVATE ERROR", e);
+    }
+
+    setConnected(false);
+  }, []);
 
   const connectWs = useCallback(async () => {
     try {
+      if (!room) return;
+
+      if (stompRef.current?.active || stompRef.current?.connected) {
+        console.log("WS ALREADY ACTIVE");
+        return;
+      }
+
       const token = await getToken();
       if (!token) return;
 
@@ -218,7 +249,11 @@ export default function ChatScreen() {
           console.log("WS CONNECTED");
           setConnected(true);
 
-          client.subscribe(`/topic/rooms/${room}`, (frame) => {
+          try {
+            subscriptionRef.current?.unsubscribe();
+          } catch {}
+
+          subscriptionRef.current = client.subscribe(`/topic/rooms/${room}`, (frame) => {
             try {
               const body: WsMessageDTO = JSON.parse(frame.body);
               appendIncomingMessage(body);
@@ -233,16 +268,23 @@ export default function ChatScreen() {
         },
         onStompError: (frame) => {
           console.log("STOMP ERROR", frame.headers["message"], frame.body);
+          setConnected(false);
         },
         onWebSocketError: (e) => {
           console.log("WS SOCKET ERROR", e);
+          setConnected(false);
+        },
+        onWebSocketClose: () => {
+          console.log("WS CLOSED");
+          setConnected(false);
         },
       });
 
-      client.activate();
       stompRef.current = client;
+      client.activate();
     } catch (e) {
       console.log("CONNECT WS ERROR", e);
+      setConnected(false);
     }
   }, [room, appendIncomingMessage]);
 
@@ -274,41 +316,36 @@ export default function ChatScreen() {
     init();
   }, []);
 
-  useEffect(() => {
-    if (!room || !myUsername) return;
-
-    loadHistory();
-    markAsRead();
-    connectWs();
-
-    return () => {
-      if (stompRef.current) {
-        stompRef.current.deactivate();
-        stompRef.current = null;
-      }
-    };
-  }, [room, myUsername, loadHistory, markAsRead, connectWs]);
-
   useFocusEffect(
     useCallback(() => {
+      if (!room || !myUsername) return;
+
+      loadHistory();
       markAsRead();
-    }, [markAsRead])
+      connectWs();
+
+      return () => {
+        void disconnectWs();
+      };
+    }, [room, myUsername, loadHistory, markAsRead, connectWs, disconnectWs])
   );
 
   useEffect(() => {
     scrollToEnd();
-  }, [sorted.length]);
+  }, [messages.length, scrollToEnd]);
 
   function sendText() {
     const t = text.trim();
     if (!t) return;
 
-    if (!stompRef.current || !connected) {
+    const client = stompRef.current;
+
+    if (!client || !client.connected) {
       console.log("WS NOT CONNECTED");
       return;
     }
 
-    stompRef.current.publish({
+    client.publish({
       destination: "/app/send-message",
       body: JSON.stringify({
         roomId: Number(room),
@@ -322,19 +359,21 @@ export default function ChatScreen() {
 
   async function pickAndSendPhoto() {
     try {
-      if (!stompRef.current) {
-        Alert.alert("Помилка", "stomp client is not ready");
+      const client = stompRef.current;
+
+      if (!client || !client.connected) {
+        Alert.alert("Error", "WebSocket isn't connected");
         return;
       }
 
-      if (!connected) {
-        Alert.alert("Error", "WebSocket isnt connected");
+      if (!room || Number.isNaN(Number(room))) {
+        Alert.alert("Error", "Invalid room id");
         return;
       }
 
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert("No permission", "");
+        Alert.alert("No permission", "Media library permission is required");
         return;
       }
 
@@ -359,11 +398,15 @@ export default function ChatScreen() {
 
       const token = await getToken();
       if (!token) {
-        Alert.alert("Error", "no token");
+        Alert.alert("Error", "No token");
         return;
       }
 
-      const rawName = asset.fileName || asset.uri.split("/").pop() || `photo_${Date.now()}.jpg`;
+      const rawName =
+        asset.fileName ||
+        asset.uri.split("/").pop() ||
+        `photo_${Date.now()}.jpg`;
+
       const lowerName = rawName.toLowerCase();
 
       let mimeType = asset.mimeType || "image/jpeg";
@@ -374,11 +417,14 @@ export default function ChatScreen() {
       }
 
       const formData = new FormData();
+
       formData.append("file", {
         uri: asset.uri,
         name: rawName,
         type: mimeType,
       } as any);
+
+      formData.append("roomId", String(room));
 
       const uploadResponse = await fetch(`${API_BASE_URL}/room/upload-photo`, {
         method: "POST",
@@ -388,33 +434,59 @@ export default function ChatScreen() {
         body: formData,
       });
 
+      const uploadText = await uploadResponse.text();
+      console.log("UPLOAD STATUS:", uploadResponse.status);
+      console.log("UPLOAD RAW RESPONSE:", uploadText);
+
       if (!uploadResponse.ok) {
-        const errText = await uploadResponse.text();
-        console.log("UPLOAD ERROR:", errText);
-        Alert.alert("Error", "Can't load the photo");
+        Alert.alert("Error", uploadText || "Can't upload the photo");
         return;
       }
 
-      const uploadResult: UploadPhotoResponse = await uploadResponse.json();
-
-      if (!uploadResult?.fileUrl) {
-        Alert.alert("Error", "No returned fileUrl");
+      let uploadResult: UploadPhotoResponse | null = null;
+      try {
+        uploadResult = uploadText ? JSON.parse(uploadText) : null;
+      } catch (e) {
+        console.log("UPLOAD JSON PARSE ERROR:", e);
+        Alert.alert("Error", "Upload response is not valid JSON");
         return;
       }
 
-      stompRef.current.publish({
+      const uploadedUrl =
+        uploadResult?.fileUrl ||
+        uploadResult?.url ||
+        uploadResult?.photoUrl ||
+        null;
+
+      const uploadedName =
+        uploadResult?.fileName ||
+        uploadResult?.name ||
+        uploadResult?.photoName ||
+        rawName;
+
+      const uploadedContentType =
+        uploadResult?.contentType ||
+        uploadResult?.photoContentType ||
+        mimeType;
+
+      if (!uploadedUrl) {
+        Alert.alert("Error", "Backend did not return file URL");
+        return;
+      }
+
+      client.publish({
         destination: "/app/send-message",
         body: JSON.stringify({
           roomId: Number(room),
-          content: uploadResult.fileUrl,
+          content: uploadedUrl,
           messageType: "PHOTO",
-          fileName: uploadResult.fileName || rawName,
-          contentType: uploadResult.contentType || mimeType,
+          fileName: uploadedName,
+          contentType: uploadedContentType,
         }),
       });
     } catch (e) {
       console.log("PICK/SEND PHOTO ERROR", e);
-      Alert.alert("Помилка", "Не вдалося відправити фото");
+      Alert.alert("Error", "Failed to send photo");
     } finally {
       setSendingPhoto(false);
     }
@@ -506,7 +578,7 @@ export default function ChatScreen() {
 
         <FlatList
           ref={listRef}
-          data={sorted}
+          data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.list}

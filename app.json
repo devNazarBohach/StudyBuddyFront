@@ -8,15 +8,27 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "StudyBuddy uses your location to show nearby students.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "StudyBuddy uses your location to show nearby students.",
+        "UIBackgroundModes": ["remote-notification"]
+      }
     },
     "android": {
       "package": "com.nazarbohach.studybuddy",
       "adaptiveIcon": {
+        "icon": "./assets/images/icon.png",
         "backgroundColor": "#E6F4FE"
       },
+      "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "POST_NOTIFICATIONS"
+      ]
     },
     "web": {
       "output": "static"
@@ -24,6 +36,21 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#4F8EF7"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "StudyBuddy uses your location to show nearby students.",
+          "locationAlwaysAndWhenInUsePermission": "StudyBuddy uses your location to show nearby students.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
       "@react-native-google-signin/google-signin"
     ],
     "experiments": {
