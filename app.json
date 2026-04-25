@@ -12,11 +12,14 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "StudyBuddy uses your location to show nearby students.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "StudyBuddy uses your location to show nearby students.",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
       "package": "com.nazarbohach.studybuddy",
+        "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "icon": "./assets/images/icon.png",
         "backgroundColor": "#E6F4FE"
@@ -27,7 +30,12 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
     "web": {
@@ -60,8 +68,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "5857dd96-e805-4749-a936-6978b6965550"
+        "projectId": "b55ce159-878e-4252-b4dd-07672dcc2365"
       }
-    }
+    },
+    "owner": "andrewtyv"
   }
 }

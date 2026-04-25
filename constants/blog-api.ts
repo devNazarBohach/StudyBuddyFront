@@ -19,6 +19,7 @@ export type BlogDTO = {
   clientId?: string | null;
   likesCount?: number;
   commentsCount?: number;
+  likedByMe?: boolean;
 };
 
 export type CommentDTO = {
@@ -27,62 +28,68 @@ export type CommentDTO = {
   content: string;
 };
 
-async function authHeaders(extra?: Record<string, string>) {
+async function authHeaders(json = true): Promise<Record<string, string>> {
   const token = await getToken();
 
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-    ...(extra || {}),
-  };
+  const headers: Record<string, string> = {};
+
+  if (json) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
 }
 
-async function handleJsonResponse<T>(response: Response): Promise<ApiResponseWrapper<T>> {
-  let result: ApiResponseWrapper<T>;
+async function handleResponse<T>(response: Response): Promise<ApiResponseWrapper<T>> {
+  const text = await response.text();
+
+  if (!text) {
+    return {
+      success: false,
+      message: `Empty response from server. Status: ${response.status}`,
+      data: null,
+      token: null,
+    };
+  }
+
+  let json: ApiResponseWrapper<T>;
 
   try {
-    result = await response.json();
+    json = JSON.parse(text);
   } catch {
+    console.log("INVALID SERVER RESPONSE:", text);
+
     return {
       success: false,
-      message: "invalid server response",
+      message: `Invalid server response. Status: ${response.status}`,
       data: null,
       token: null,
     };
   }
 
-  if (!response.ok) {
-    return {
-      success: false,
-      message: result?.message || "request failed",
-      data: null,
-      token: null,
-    };
-  }
-
-  return result;
+  return json;
 }
 
 export async function getAllBlogs() {
-  const headers = await authHeaders();
-
   const response = await fetch(`${API_BASE_URL}/blog/all`, {
     method: "GET",
-    headers,
+    headers: await authHeaders(false),
   });
 
-  return handleJsonResponse<BlogDTO[]>(response);
+  return handleResponse<BlogDTO[]>(response);
 }
 
 export async function getBlogById(id: number) {
-  const headers = await authHeaders();
-
   const response = await fetch(`${API_BASE_URL}/blog/${id}`, {
     method: "GET",
-    headers,
+    headers: await authHeaders(false),
   });
 
-  return handleJsonResponse<BlogDTO>(response);
+  return handleResponse<BlogDTO>(response);
 }
 
 export async function createBlog(payload: {
@@ -90,15 +97,13 @@ export async function createBlog(payload: {
   content: string;
   clientId?: string | null;
 }) {
-  const headers = await authHeaders();
-
   const response = await fetch(`${API_BASE_URL}/blog/create`, {
     method: "POST",
-    headers,
+    headers: await authHeaders(true),
     body: JSON.stringify(payload),
   });
 
-  return handleJsonResponse<BlogDTO>(response);
+  return handleResponse<BlogDTO>(response);
 }
 
 export async function updateBlog(payload: {
@@ -108,101 +113,81 @@ export async function updateBlog(payload: {
   updatedAt?: string;
   clientId?: string | null;
 }) {
-  const headers = await authHeaders();
-
   const response = await fetch(`${API_BASE_URL}/blog/update`, {
     method: "PUT",
-    headers,
+    headers: await authHeaders(true),
     body: JSON.stringify(payload),
   });
 
-  return handleJsonResponse<BlogDTO>(response);
+  return handleResponse<BlogDTO>(response);
 }
 
 export async function deleteBlog(id: number) {
-  const headers = await authHeaders();
-
   const response = await fetch(`${API_BASE_URL}/blog/delete`, {
     method: "DELETE",
-    headers,
+    headers: await authHeaders(true),
     body: JSON.stringify({ id }),
   });
 
-  return handleJsonResponse<string>(response);
+  return handleResponse<string>(response);
 }
 
 export async function likeBlog(id: number) {
-  const headers = await authHeaders();
-
   const response = await fetch(`${API_BASE_URL}/blog/like/${id}`, {
     method: "POST",
-    headers,
+    headers: await authHeaders(false),
   });
 
-  return handleJsonResponse<string>(response);
+  return handleResponse<string>(response);
 }
 
 export async function dislikeBlog(id: number) {
-  const headers = await authHeaders();
-
   const response = await fetch(`${API_BASE_URL}/blog/dislike/${id}`, {
     method: "DELETE",
-    headers,
+    headers: await authHeaders(false),
   });
 
-  return handleJsonResponse<string>(response);
+  return handleResponse<string>(response);
 }
 
 export async function getComments(blogId: number) {
-  const headers = await authHeaders();
-
   const response = await fetch(`${API_BASE_URL}/blog/comments/${blogId}`, {
     method: "GET",
-    headers,
+    headers: await authHeaders(false),
   });
 
-  return handleJsonResponse<CommentDTO[]>(response);
+  return handleResponse<CommentDTO[]>(response);
 }
 
 export async function addComment(blogId: number, content: string) {
-  const token = await getToken();
-
   const response = await fetch(
     `${API_BASE_URL}/blog/comment/${blogId}?content=${encodeURIComponent(content)}`,
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: await authHeaders(false),
     }
   );
 
-  return handleJsonResponse<string>(response);
+  return handleResponse<string>(response);
 }
 
 export async function deleteComment(commentId: number) {
-  const headers = await authHeaders();
-
   const response = await fetch(`${API_BASE_URL}/blog/comments/${commentId}`, {
     method: "DELETE",
-    headers,
+    headers: await authHeaders(false),
   });
 
-  return handleJsonResponse<string>(response);
+  return handleResponse<string>(response);
 }
 
 export async function editComment(commentId: number, content: string) {
-  const token = await getToken();
-
   const response = await fetch(
     `${API_BASE_URL}/blog/comments/${commentId}?content=${encodeURIComponent(content)}`,
     {
       method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: await authHeaders(false),
     }
   );
 
-  return handleJsonResponse<string>(response);
+  return handleResponse<string>(response);
 }
