@@ -19,9 +19,8 @@
     },
     "android": {
       "package": "com.nazarbohach.studybuddy",
-        "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "icon": "./assets/images/icon.png",
+        "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#E6F4FE"
       },
       "googleServicesFile": "./google-services.json",
@@ -68,9 +67,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b55ce159-878e-4252-b4dd-07672dcc2365"
+        "projectId": "5857dd96-e805-4749-a936-6978b6965550"
       }
     },
-    "owner": "andrewtyv"
+    "owner": "nazarbohach"
   }
 }

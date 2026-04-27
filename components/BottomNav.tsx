@@ -1,72 +1,52 @@
 import { Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
+
+import { useTheme } from "@/context/ThemeContext";
 import { ThemedText } from "./themed-text";
+
+const TABS = [
+  { route: "/tabs", label: "Home", icon: "home", iconOutline: "home-outline" },
+  { route: "/tabs/chats", label: "Chats", icon: "chatbubble", iconOutline: "chatbubble-outline" },
+  { route: "/tabs/blog", label: "Blog", icon: "newspaper", iconOutline: "newspaper-outline" },
+  { route: "/tabs/nearby", label: "Nearby", icon: "map", iconOutline: "map-outline" },
+  { route: "/tabs/friends", label: "Friends", icon: "people", iconOutline: "people-outline" },
+  { route: "/tabs/settings", label: "Settings", icon: "settings", iconOutline: "settings-outline" },
+] as const;
 
 export default function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
-
-  const isActive = (route: string) => pathname === route;
+  const { theme } = useTheme();
 
   return (
-    <View style={styles.container}>
-      <Pressable style={styles.btn} onPress={() => router.push("/tabs")}>
-        <Ionicons
-          name={isActive("/tabs") ? "home" : "home-outline"}
-          size={24}
-          color="#111"
-        />
-        <ThemedText style={styles.label}>Home</ThemedText>
-      </Pressable>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: theme.card, borderTopColor: theme.border },
+      ]}
+    >
+      {TABS.map(({ route, label, icon, iconOutline }) => {
+        const active = pathname === route;
+        const iconColor = active ? theme.primary : theme.icon;
 
-      <Pressable style={styles.btn} onPress={() => router.push("/tabs/chats")}>
-        <Ionicons
-          name={isActive("/tabs/chats") ? "chatbubble" : "chatbubble-outline"}
-          size={24}
-          color="#111"
-        />
-        <ThemedText style={styles.label}>Chats</ThemedText>
-      </Pressable>
-
-      <Pressable style={styles.btn} onPress={() => router.push("/tabs/blog")}>
-        <Ionicons
-          name={isActive("/tabs/blog") ? "newspaper" : "newspaper-outline"}
-          size={24}
-          color="#111"
-        />
-        <ThemedText style={styles.label}>Blog</ThemedText>
-      </Pressable>
-
-      <Pressable style={styles.btn} onPress={() => router.push("/tabs/nearby")}>
-        <Ionicons
-          name={isActive("/tabs/nearby") ? "map" : "map-outline"}
-          size={24}
-          color="#111"
-        />
-        <ThemedText style={styles.label}>Nearby</ThemedText>
-      </Pressable>
-
-      <Pressable style={styles.btn} onPress={() => router.push("/tabs/friends")}>
-        <Ionicons
-          name={isActive("/tabs/friends") ? "people" : "people-outline"}
-          size={24}
-          color="#111"
-        />
-        <ThemedText style={styles.label}>Friends</ThemedText>
-      </Pressable>
-
-      <Pressable
-        style={styles.btn}
-        onPress={() => router.push("/tabs/settings")}
-      >
-        <Ionicons
-          name={isActive("/tabs/settings") ? "settings" : "settings-outline"}
-          size={24}
-          color="#111"
-        />
-        <ThemedText style={styles.label}>Settings</ThemedText>
-      </Pressable>
+        return (
+          <Pressable
+            key={route}
+            style={styles.btn}
+            onPress={() => router.push(route as any)}
+          >
+            <Ionicons
+              name={active ? icon : iconOutline}
+              size={24}
+              color={iconColor}
+            />
+            <ThemedText style={[styles.label, { color: iconColor }]}>
+              {label}
+            </ThemedText>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -78,9 +58,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: 78,
-    backgroundColor: "#fff",
     borderTopWidth: 1,
-    borderTopColor: "#ddd",
     flexDirection: "row",
     paddingTop: 6,
     paddingBottom: 8,

@@ -1,53 +1,71 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
-import { Platform } from 'react-native';
-
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
-
-export const Colors = {
-  light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
-  },
-  dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
-  },
+export type AppTheme = {
+  background: string;
+  surface: string;
+  card: string;
+  text: string;
+  secondaryText: string;
+  border: string;
+  primary: string;
+  danger: string;
+  onPrimary: string;
+  onDanger: string;
+  icon: string;
+  placeholder: string;
+  inputBackground: string;
 };
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+const light: AppTheme = {
+  background: "#FFFFFF",
+  surface: "#F5F7FA",
+  card: "#FFFFFF",
+  text: "#111827",
+  secondaryText: "#6B7280",
+  border: "#E5E7EB",
+  primary: "#4F8EF7",
+  danger: "#DC2626",
+  onPrimary: "#FFFFFF",
+  onDanger: "#FFFFFF",
+  icon: "#374151",
+  placeholder: "#9CA3AF",
+  inputBackground: "#FFFFFF",
+};
+
+const dark: AppTheme = {
+  background: "#0B1220",
+  surface: "#111827",
+  card: "#1F2937",
+  text: "#F9FAFB",
+  secondaryText: "#D1D5DB",
+  border: "#374151",
+  primary: "#60A5FA",
+  danger: "#F87171",
+  onPrimary: "#0B1220",
+  onDanger: "#0B1220",
+  icon: "#D1D5DB",
+  placeholder: "#6B7280",
+  inputBackground: "#1F2937",
+};
+
+const highContrast: AppTheme = {
+  background: "#000000",
+  surface: "#000000",
+  card: "#111111",
+  text: "#FFFFFF",
+  secondaryText: "#FFFFFF",
+  border: "#FFFFFF",
+  primary: "#FFFF00",
+  danger: "#FF3333",
+  onPrimary: "#000000",
+  onDanger: "#000000",
+  icon: "#FFFF00",
+  placeholder: "#AAAAAA",
+  inputBackground: "#111111",
+};
+
+export function getTheme(isDark: boolean, isHighContrast: boolean): AppTheme {
+  if (isHighContrast) return highContrast;
+  return isDark ? dark : light;
+}
+
+export { dark as darkTheme, highContrast as highContrastTheme, light as lightTheme };
+
