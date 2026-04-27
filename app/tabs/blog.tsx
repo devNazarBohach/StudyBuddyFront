@@ -1,5 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -18,6 +18,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
+import { useTheme } from "@/context/ThemeContext";
 
 type BlogDTO = {
   id: number;
@@ -126,6 +127,8 @@ async function apiRequest(path: string, options?: RequestInit) {
 }
 
 export default function BlogScreen() {
+  const { theme } = useTheme();
+  const styles = makeStyles(theme);
   const [blogs, setBlogs] = useState<BlogDTO[]>([]);
   const [comments, setComments] = useState<CommentDTO[]>([]);
 
@@ -683,17 +686,17 @@ export default function BlogScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(theme: import('@/constants/theme').AppTheme) { return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F6F3FF",
+    backgroundColor: theme.inputBackground,
   },
 
   header: {
     paddingTop: 58,
     paddingHorizontal: 18,
     paddingBottom: 20,
-    backgroundColor: "#34207E",
+    backgroundColor: theme.primary,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
     flexDirection: "row",
@@ -704,7 +707,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 30,
     fontWeight: "900",
-    color: "#fff",
+    color: theme.card,
   },
 
   subtitle: {
@@ -739,25 +742,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
     paddingHorizontal: 14,
     paddingVertical: 11,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#E7E0FF",
+    borderColor: theme.border,
   },
 
   refreshText: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#34207E",
+    color: theme.primary,
   },
 
   countPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    backgroundColor: "#EEE8FF",
+    backgroundColor: theme.border,
     paddingHorizontal: 14,
     paddingVertical: 11,
     borderRadius: 999,
@@ -766,7 +769,7 @@ const styles = StyleSheet.create({
   countText: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#34207E",
+    color: theme.primary,
   },
 
   list: {
@@ -775,12 +778,12 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
     borderRadius: 26,
     padding: 16,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#E7E0FF",
+    borderColor: theme.border,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
@@ -799,7 +802,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#EEE8FF",
+    backgroundColor: theme.border,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
@@ -809,25 +812,25 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 18,
     fontWeight: "900",
-    color: "#34207E",
+    color: theme.primary,
   },
 
   blogTitle: {
     fontSize: 20,
     fontWeight: "900",
-    color: "#181126",
+    color: theme.text,
   },
 
   meta: {
     marginTop: 4,
     fontSize: 12,
-    color: "#7B708F",
+    color: theme.secondaryText,
   },
 
   blogContent: {
     fontSize: 15,
     lineHeight: 23,
-    color: "#2D2738",
+    color: theme.text,
     marginBottom: 14,
   },
 
@@ -838,7 +841,7 @@ const styles = StyleSheet.create({
   },
 
   statPill: {
-    backgroundColor: "#F2EEFF",
+    backgroundColor: theme.surface,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
@@ -860,7 +863,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderRadius: 16,
-    backgroundColor: "#F2EEFF",
+    backgroundColor: theme.surface,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
@@ -868,17 +871,17 @@ const styles = StyleSheet.create({
   },
 
   likedBtn: {
-    backgroundColor: "#34207E",
+    backgroundColor: theme.primary,
   },
 
   actionText: {
     fontSize: 14,
     fontWeight: "900",
-    color: "#34207E",
+    color: theme.primary,
   },
 
   actionTextWhite: {
-    color: "#fff",
+    color: theme.card,
   },
 
   ownerActions: {
@@ -891,7 +894,7 @@ const styles = StyleSheet.create({
     height: 38,
     paddingHorizontal: 14,
     borderRadius: 14,
-    backgroundColor: "#F2EEFF",
+    backgroundColor: theme.surface,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
@@ -899,7 +902,7 @@ const styles = StyleSheet.create({
   },
 
   ownerText: {
-    color: "#34207E",
+    color: theme.primary,
     fontWeight: "800",
     fontSize: 13,
   },
@@ -916,7 +919,7 @@ const styles = StyleSheet.create({
   },
 
   trashText: {
-    color: "#fff",
+    color: theme.card,
     fontWeight: "800",
     fontSize: 13,
   },
@@ -931,7 +934,7 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: "#EEE8FF",
+    backgroundColor: theme.border,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
@@ -940,13 +943,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 19,
     fontWeight: "900",
-    color: "#181126",
+    color: theme.text,
   },
 
   emptyText: {
     marginTop: 5,
     fontSize: 14,
-    color: "#7B708F",
+    color: theme.secondaryText,
   },
 
   modalOverlay: {
@@ -957,11 +960,11 @@ const styles = StyleSheet.create({
   },
 
   modalCard: {
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
     borderRadius: 28,
     padding: 18,
     borderWidth: 1,
-    borderColor: "#E7E0FF",
+    borderColor: theme.border,
   },
 
   commentsModal: {
@@ -978,12 +981,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 22,
     fontWeight: "900",
-    color: "#181126",
+    color: theme.text,
   },
 
   modalSubtitle: {
     marginTop: 3,
-    color: "#7B708F",
+    color: theme.secondaryText,
     fontSize: 13,
   },
 
@@ -991,7 +994,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "#F2EEFF",
+    backgroundColor: theme.surface,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -999,12 +1002,12 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 50,
     borderRadius: 17,
-    backgroundColor: "#F6F3FF",
+    backgroundColor: theme.inputBackground,
     borderWidth: 1,
-    borderColor: "#E7E0FF",
+    borderColor: theme.border,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: "#181126",
+    color: theme.text,
     fontSize: 15,
     marginBottom: 12,
   },
@@ -1025,7 +1028,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     height: 46,
     borderRadius: 16,
-    backgroundColor: "#F2EEFF",
+    backgroundColor: theme.surface,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1033,14 +1036,14 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: 14,
     fontWeight: "900",
-    color: "#34207E",
+    color: theme.primary,
   },
 
   saveBtn: {
     paddingHorizontal: 20,
     height: 46,
     borderRadius: 16,
-    backgroundColor: "#34207E",
+    backgroundColor: theme.primary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1048,7 +1051,7 @@ const styles = StyleSheet.create({
   saveText: {
     fontSize: 14,
     fontWeight: "900",
-    color: "#fff",
+    color: theme.card,
   },
 
   commentsList: {
@@ -1068,14 +1071,14 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#EEE8FF",
+    borderBottomColor: theme.border,
   },
 
   commentAvatar: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: "#EEE8FF",
+    backgroundColor: theme.border,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1083,19 +1086,19 @@ const styles = StyleSheet.create({
   commentAvatarText: {
     fontSize: 13,
     fontWeight: "900",
-    color: "#34207E",
+    color: theme.primary,
   },
 
   commentUser: {
     fontSize: 13,
     fontWeight: "900",
-    color: "#181126",
+    color: theme.text,
     marginBottom: 3,
   },
 
   commentText: {
     fontSize: 14,
-    color: "#2D2738",
+    color: theme.text,
     lineHeight: 20,
   },
 
@@ -1103,8 +1106,8 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 13,
-    backgroundColor: "#FFF0F0",
+    backgroundColor: theme.danger + "18",
     alignItems: "center",
     justifyContent: "center",
   },
-});
+}); }

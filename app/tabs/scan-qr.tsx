@@ -2,6 +2,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
+import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
@@ -9,6 +10,8 @@ import React, { useState } from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 
 export default function ScanQrScreen() {
+  const { theme } = useTheme();
+  const styles = makeStyles(theme);
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -161,7 +164,7 @@ export default function ScanQrScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(theme: import('@/constants/theme').AppTheme) { return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#000",
@@ -288,4 +291,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
   },
-});
+}); }

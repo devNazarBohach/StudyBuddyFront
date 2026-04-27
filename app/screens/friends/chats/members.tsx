@@ -1,17 +1,19 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { UserAvatar } from "@/components/UserAvatar";
 import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
+import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Pressable,
-    StyleSheet,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  View,
 } from "react-native";
 
 type MemberDTO = {
@@ -20,6 +22,8 @@ type MemberDTO = {
 };
 
 export default function MembersScreen() {
+  const { theme } = useTheme();
+  const styles = makeStyles(theme);
   const { roomId } = useLocalSearchParams<{ roomId?: string }>();
   const room = Number(roomId);
 
@@ -138,12 +142,7 @@ export default function MembersScreen() {
 
     return (
       <View style={styles.card}>
-        <View style={styles.avatar}>
-          <ThemedText style={styles.avatarText}>
-            {item.username?.charAt(0)?.toLowerCase() || "u"}
-          </ThemedText>
-        </View>
-
+        <UserAvatar username={item.username} size={52} />
         <View style={styles.info}>
           <ThemedText style={styles.name}>{item.username}</ThemedText>
           <ThemedText style={styles.handle}>@{item.username}</ThemedText>
@@ -194,10 +193,10 @@ export default function MembersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(theme: import('@/constants/theme').AppTheme) { return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f6f6f6",
+    backgroundColor: theme.surface,
   },
 
   header: {
@@ -235,7 +234,7 @@ const styles = StyleSheet.create({
 
   separator: {
     height: 1,
-    backgroundColor: "#222",
+    backgroundColor: theme.border,
   },
 
   card: {
@@ -244,7 +243,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     paddingHorizontal: 14,
     paddingVertical: 16,
-    backgroundColor: "#f6f6f6",
+    backgroundColor: theme.surface,
   },
 
   avatar: {
@@ -257,12 +256,12 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: "#d9d9d9",
+    backgroundColor: theme.surface,
     textAlign: "center",
     textAlignVertical: "center",
     lineHeight: 52,
     fontSize: 22,
-    color: "#111",
+    color: theme.text,
     overflow: "hidden",
   },
 
@@ -272,12 +271,12 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 20,
-    color: "#111",
+    color: theme.text,
   },
   handle: {
     marginTop: 2,
     fontSize: 18,
-    color: "#111",
+    color: theme.text,
   },
 
   rightBlock: {
@@ -286,7 +285,7 @@ const styles = StyleSheet.create({
   },
   role: {
     fontSize: 18,
-    color: "#111",
+    color: theme.text,
     marginTop: 2,
     marginBottom: 36,
   },
@@ -294,12 +293,12 @@ const styles = StyleSheet.create({
   kickBtn: {
     width: 120,
     height: 48,
-    backgroundColor: "#d9d9d9",
+    backgroundColor: theme.surface,
     alignItems: "center",
     justifyContent: "center",
   },
   kickText: {
     fontSize: 18,
-    color: "#111",
+    color: theme.text,
   },
-});
+}); }

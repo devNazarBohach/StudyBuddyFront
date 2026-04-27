@@ -1,4 +1,5 @@
 import { saveToken } from "@/constants/tokens";
+import { useTheme } from "@/context/ThemeContext";
 import { authApi } from "@/services";
 import { useAppState } from "@/state/AppState";
 import { router } from "expo-router";
@@ -24,7 +25,9 @@ export default function RegisterScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
   const { setMyUsername, setAdminMode } = useAppState();
+  const { theme } = useTheme();
 
   function validate(p: RegisterPayload) {
     if (!p.email.trim() || !p.username.trim() || !p.password.trim()) {
@@ -73,8 +76,8 @@ export default function RegisterScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Register</Text>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Text style={[styles.title, { color: theme.text }]}>Register</Text>
 
       <TextInput
         value={email}
@@ -82,7 +85,15 @@ export default function RegisterScreen() {
         placeholder="Email"
         autoCapitalize="none"
         keyboardType="email-address"
-        style={styles.input}
+        style={[
+          styles.input,
+          {
+            backgroundColor: theme.inputBackground,
+            borderColor: theme.border,
+            color: theme.text,
+          },
+        ]}
+        placeholderTextColor={theme.placeholder}
       />
 
       <TextInput
@@ -90,7 +101,15 @@ export default function RegisterScreen() {
         onChangeText={setUsername}
         placeholder="Username"
         autoCapitalize="none"
-        style={styles.input}
+        style={[
+          styles.input,
+          {
+            backgroundColor: theme.inputBackground,
+            borderColor: theme.border,
+            color: theme.text,
+          },
+        ]}
+        placeholderTextColor={theme.placeholder}
       />
 
       <TextInput
@@ -98,19 +117,33 @@ export default function RegisterScreen() {
         onChangeText={setPassword}
         placeholder="Password (min 8)"
         secureTextEntry
-        style={styles.input}
+        style={[
+          styles.input,
+          {
+            backgroundColor: theme.inputBackground,
+            borderColor: theme.border,
+            color: theme.text,
+          },
+        ]}
+        placeholderTextColor={theme.placeholder}
       />
 
-      <Pressable style={styles.button} onPress={onRegister} disabled={loading}>
+      <Pressable
+        style={[styles.button, { backgroundColor: theme.primary }]}
+        onPress={onRegister}
+        disabled={loading}
+      >
         {loading ? (
-          <ActivityIndicator />
+          <ActivityIndicator color={theme.onPrimary} />
         ) : (
-          <Text style={styles.buttonText}>Create account</Text>
+          <Text style={[styles.buttonText, { color: theme.onPrimary }]}>
+            Create account
+          </Text>
         )}
       </Pressable>
 
       <Pressable onPress={() => router.back()} style={styles.link}>
-        <Text style={styles.linkText}>Back</Text>
+        <Text style={[styles.linkText, { color: theme.primary }]}>Back</Text>
       </Pressable>
     </View>
   );
@@ -122,7 +155,6 @@ const styles = StyleSheet.create({
   input: {
     height: 48,
     borderWidth: 1,
-    borderColor: "#ccc",
     borderRadius: 10,
     paddingHorizontal: 12,
   },
@@ -131,10 +163,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#111",
     marginTop: 8,
   },
-  buttonText: { color: "white", fontWeight: "600" },
+  buttonText: { fontWeight: "600" },
   link: { marginTop: 10, alignItems: "center" },
-  linkText: { color: "#333" },
+  linkText: {},
 });

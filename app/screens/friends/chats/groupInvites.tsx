@@ -1,19 +1,22 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { useTheme } from "@/context/ThemeContext";
 import { InviteDTO, roomsApi, toUserMessage } from "@/services/roomApi";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Pressable,
-    StyleSheet,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  View,
 } from "react-native";
 
 export default function GroupInvitesScreen() {
+  const { theme } = useTheme();
+  const styles = makeStyles(theme);
   const [invites, setInvites] = useState<InviteDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<number | null>(null);
@@ -141,7 +144,7 @@ export default function GroupInvitesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(theme: import('@/constants/theme').AppTheme) { return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f7f7f7",
@@ -169,9 +172,11 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   card: {
-    backgroundColor: "#fff",
     borderRadius: 18,
     padding: 14,
+    backgroundColor: theme.card,
+    borderWidth: 1,
+    borderColor: theme.border,
     flexDirection: "row",
     alignItems: "center",
     shadowColor: "#000",
@@ -184,7 +189,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: "#e4e4e4",
+    backgroundColor: theme.surface,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
@@ -195,12 +200,12 @@ const styles = StyleSheet.create({
   roomName: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#111",
+    color: theme.text,
     marginBottom: 2,
   },
   subtitle: {
     fontSize: 13,
-    color: "#777",
+    color: theme.secondaryText,
   },
   actions: {
     marginLeft: 10,
@@ -215,18 +220,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   acceptBtn: {
-    backgroundColor: "#2b6ef2",
+    backgroundColor: theme.primary,
   },
   declineBtn: {
-    backgroundColor: "#ececec",
+    backgroundColor: theme.surface,
   },
   acceptText: {
-    color: "#fff",
+    color: theme.onPrimary,
     fontSize: 13,
     fontWeight: "700",
   },
   declineText: {
-    color: "#222",
+    color: theme.text,
     fontSize: 13,
     fontWeight: "700",
   },
@@ -240,7 +245,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   loadingText: {
-    color: "#666",
+    color: theme.secondaryText,
     fontSize: 14,
   },
   emptyTitle: {
@@ -249,4 +254,4 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#111",
   },
-});
+}); }

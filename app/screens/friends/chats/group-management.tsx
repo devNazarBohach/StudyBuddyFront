@@ -2,17 +2,18 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
+import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 
@@ -21,6 +22,8 @@ type UserDTO = {
 };
 
 export default function GroupManagementScreen() {
+  const { theme } = useTheme();
+  const styles = makeStyles(theme);
   const { roomId } = useLocalSearchParams<{ roomId?: string }>();
   const room = Number(roomId);
 
@@ -207,18 +210,18 @@ export default function GroupManagementScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(theme: import('@/constants/theme').AppTheme) { return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f7f7f7",
+    backgroundColor: theme.background,
   },
   header: {
     paddingTop: 56,
     paddingHorizontal: 16,
     paddingBottom: 14,
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e5e5",
+    borderBottomColor: theme.border,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -227,14 +230,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "#ededed",
+    backgroundColor: theme.surface,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#111",
+    color: theme.text,
   },
   content: {
     padding: 16,
@@ -244,25 +247,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     marginBottom: 10,
-    color: "#111",
+    color: theme.text,
   },
   qrCard: {
     minHeight: 260,
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#e5e5e5",
+    borderColor: theme.border,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 24,
     padding: 20,
   },
   friendCard: {
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#e5e5e5",
+    borderColor: theme.border,
     flexDirection: "row",
     marginBottom: 12,
   },
@@ -270,7 +273,7 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 31,
-    backgroundColor: "#d9d9d9",
+    backgroundColor: theme.surface,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
@@ -278,7 +281,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#333",
+    color: theme.text,
   },
   friendInfo: {
     flex: 1,
@@ -287,11 +290,11 @@ const styles = StyleSheet.create({
   friendName: {
     fontSize: 22,
     fontWeight: "600",
-    color: "#111",
+    color: theme.text,
   },
   friendUsername: {
     fontSize: 16,
-    color: "#444",
+    color: theme.secondaryText,
     marginTop: 2,
     marginBottom: 14,
   },
@@ -299,18 +302,18 @@ const styles = StyleSheet.create({
     width: 140,
     height: 46,
     borderRadius: 12,
-    backgroundColor: "#d9d9d9",
+    backgroundColor: theme.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   addBtnText: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#111",
+    color: theme.onPrimary,
   },
   emptyText: {
     marginTop: 16,
     textAlign: "center",
-    color: "#666",
+    color: theme.secondaryText,
   },
-});
+}); }

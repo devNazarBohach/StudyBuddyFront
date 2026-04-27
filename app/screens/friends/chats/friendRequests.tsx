@@ -13,6 +13,8 @@ import {
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { UserAvatar } from "@/components/UserAvatar";
+import { useTheme } from "@/context/ThemeContext";
 import {
   friendsApi,
   FriendshipDTO,
@@ -21,12 +23,23 @@ import {
 
 type TabKey = "incoming" | "outgoing";
 
-function Avatar({ username }: { username: string }) {
+function Avatar({ username, theme }: { username: string; theme: import("@/constants/theme").AppTheme }) {
   const letter = (username?.[0] ?? "?").toUpperCase();
 
   return (
-    <View style={styles.avatar}>
-      <ThemedText style={styles.avatarText}>{letter}</ThemedText>
+    <View style={{
+      width: 54,
+      height: 54,
+      borderRadius: 999,
+      backgroundColor: theme.surface,
+      alignItems: "center",
+      justifyContent: "center",
+    }}>
+      <ThemedText style={{
+        fontSize: 20,
+        fontWeight: "800",
+        color: theme.text,
+      }}>{letter}</ThemedText>
     </View>
   );
 }
@@ -39,6 +52,8 @@ function prettyDate(value?: string) {
 }
 
 export default function FriendRequestsScreen() {
+  const { theme } = useTheme();
+  const styles = makeStyles(theme);
   const [tab, setTab] = useState<TabKey>("incoming");
   const [incoming, setIncoming] = useState<FriendshipDTO[]>([]);
   const [outgoing, setOutgoing] = useState<FriendshipDTO[]>([]);
@@ -208,7 +223,7 @@ export default function FriendRequestsScreen() {
               return (
                 <View key={`${tab}-${item.id ?? item.username}`} style={styles.card}>
                   <View style={styles.cardTop}>
-                    <Avatar username={item.username} />
+                    <UserAvatar username={item.username} size={54} />
 
                     <View style={{ flex: 1 }}>
                       <ThemedText style={styles.nameText}>
@@ -300,12 +315,12 @@ export default function FriendRequestsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(theme: import('@/constants/theme').AppTheme) { return StyleSheet.create({
   screen: {
     flex: 1,
     paddingTop: 58,
     paddingHorizontal: 16,
-    backgroundColor: "#f6f7fb",
+    backgroundColor: theme.background,
   },
 
   header: {
@@ -319,33 +334,33 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#ececf2",
+    borderColor: theme.border,
   },
 
   addBtn: {
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#ececf2",
+    borderColor: theme.border,
   },
 
   headerTitle: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#111",
+    color: theme.text,
   },
 
   tabsWrap: {
     flexDirection: "row",
-    backgroundColor: "#eceef5",
+    backgroundColor: theme.surface,
     borderRadius: 16,
     padding: 4,
     marginBottom: 16,
@@ -360,17 +375,17 @@ const styles = StyleSheet.create({
   },
 
   tabBtnActive: {
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
   },
 
   tabText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#6b7280",
+    color: theme.secondaryText,
   },
 
   tabTextActive: {
-    color: "#111",
+    color: theme.text,
   },
 
   listContent: {
@@ -389,31 +404,31 @@ const styles = StyleSheet.create({
     marginTop: 40,
     padding: 24,
     borderRadius: 20,
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
     alignItems: "center",
     gap: 10,
     borderWidth: 1,
-    borderColor: "#ececf2",
+    borderColor: theme.border,
   },
 
   emptyTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#111",
+    color: theme.text,
   },
 
   emptySubtitle: {
     textAlign: "center",
-    color: "#7b8090",
+    color: theme.secondaryText,
     lineHeight: 20,
   },
 
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
     borderRadius: 20,
     padding: 14,
     borderWidth: 1,
-    borderColor: "#ececf2",
+    borderColor: theme.border,
     gap: 14,
   },
 
@@ -427,7 +442,7 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 999,
-    backgroundColor: "#e9ecf5",
+    backgroundColor: theme.surface,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -435,19 +450,19 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#111",
+    color: theme.text,
   },
 
   nameText: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#111",
+    color: theme.text,
     marginBottom: 4,
   },
 
   metaText: {
     fontSize: 13,
-    color: "#7b8090",
+    color: theme.secondaryText,
   },
 
   rowBtns: {
@@ -459,13 +474,13 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 46,
     borderRadius: 14,
-    backgroundColor: "#111827",
+    backgroundColor: theme.primary,
     alignItems: "center",
     justifyContent: "center",
   },
 
   primaryBtnText: {
-    color: "#fff",
+    color: theme.onPrimary,
     fontWeight: "700",
   },
 
@@ -473,19 +488,19 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 46,
     borderRadius: 14,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: theme.surface,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: theme.border,
   },
 
   secondaryBtnText: {
-    color: "#111",
+    color: theme.text,
     fontWeight: "700",
   },
 
   btnDisabled: {
     opacity: 0.6,
   },
-});
+}); }

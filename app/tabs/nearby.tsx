@@ -1,5 +1,7 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { UserAvatar } from "@/components/UserAvatar";
+import { useTheme } from "@/context/ThemeContext";
 import { locationApi, UserLocationDTO } from "@/services/locationApi";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
@@ -40,11 +42,15 @@ function formatUpdated(iso?: string) {
 }
 
 export default function NearbyScreen() {
+  const { theme } = useTheme();
+  const styles = makeStyles(theme);
   const [permission, setPermission] = useState<PermissionState>("idle");
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [users, setUsers] = useState<UserLocationDTO[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const isLocationOff = error?.toLowerCase().includes("share location") ||
+                      error?.toLowerCase().includes("disabled");
 
   const requestAndUpdate = useCallback(async (): Promise<boolean> => {
     setPermission("checking");
@@ -200,12 +206,32 @@ export default function NearbyScreen() {
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
-            ListEmptyComponent={
+           ListEmptyComponent={
               <View style={styles.center}>
-                <Ionicons name="people-outline" size={48} color="#aaa" />
-                <ThemedText style={styles.muted}>
-                  {error ?? "No students around yet. Pull to refresh."}
-                </ThemedText>
+                {isLocationOff ? (
+                  <>
+                    <Ionicons name="location-outline" size={48} color={theme.secondaryText} />
+                    <ThemedText style={[styles.muted, { marginTop: 12, fontWeight: "600" }]}>
+                      Location sharing is OFF
+                    </ThemedText>
+                    <ThemedText style={[styles.muted, { marginTop: 4 }]}>
+                      Enable "Share location" in Settings to see nearby students and be visible to them.
+                    </ThemedText>
+                    <Pressable
+                      style={[styles.primaryBtn, { marginTop: 20 }]}
+                      onPress={() => router.push("/tabs/settings")}
+                    >
+                      <ThemedText style={styles.primaryBtnText}>Go to Settings</ThemedText>
+                    </Pressable>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="people-outline" size={48} color={theme.secondaryText} />
+                    <ThemedText style={[styles.muted, { marginTop: 8 }]}>
+                      {error ?? "No students around yet. Pull to refresh."}
+                    </ThemedText>
+                  </>
+                )}
               </View>
             }
             renderItem={({ item }) => (
@@ -227,11 +253,7 @@ export default function NearbyScreen() {
                   ]);
                 }}
               >
-                <View style={styles.avatar}>
-                  <ThemedText style={styles.avatarText}>
-                    {item.username.slice(0, 1).toUpperCase()}
-                  </ThemedText>
-                </View>
+                <UserAvatar username={item.username} size={44} />
                 <View style={styles.rowMain}>
                   <ThemedText style={styles.rowTitle}>
                     @{item.username}
@@ -242,7 +264,7 @@ export default function NearbyScreen() {
                   </ThemedText>
                 </View>
                 <View style={styles.distance}>
-                  <Ionicons name="location" size={14} color="#4F8EF7" />
+                  <Ionicons name="location" size={14} color={theme.primary} />
                   <ThemedText style={styles.distanceText}>
                     {formatDistance(item.distanceKm)}
                   </ThemedText>
@@ -256,12 +278,12 @@ export default function NearbyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(theme: import('@/constants/theme').AppTheme) { return StyleSheet.create({
   safe: { flex: 1 },
   container: { flex: 1, paddingHorizontal: 16 },
   header: { paddingVertical: 16 },
   title: { fontSize: 28, fontWeight: "700" },
-  muted: { color: "#888", textAlign: "center", marginTop: 8 },
+  muted: { color: theme.secondaryText, textAlign: "center", marginTop: 8 },
   heading: { marginTop: 12, textAlign: "center" },
   center: {
     flex: 1,
@@ -272,33 +294,33 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     marginTop: 24,
-    backgroundColor: "#4F8EF7",
+    backgroundColor: theme.primary,
     paddingHorizontal: 28,
     paddingVertical: 12,
     borderRadius: 10,
   },
-  primaryBtnText: { color: "white", fontWeight: "600", fontSize: 16 },
+  primaryBtnText: { color: theme.onPrimary, fontWeight: "600", fontSize: 16 },
   row: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: "#2a2a2a",
+    borderColor: theme.border,
   },
   avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#4F8EF7",
+    backgroundColor: theme.primary,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
   },
-  avatarText: { color: "white", fontWeight: "700", fontSize: 18 },
+  avatarText: { color: theme.onPrimary, fontWeight: "700", fontSize: 18 },
   rowMain: { flex: 1 },
   rowTitle: { fontSize: 16, fontWeight: "600" },
-  rowSub: { fontSize: 12, color: "#888", marginTop: 2 },
+  rowSub: { fontSize: 12, color: theme.secondaryText, marginTop: 2 },
   distance: {
     flexDirection: "row",
     alignItems: "center",
@@ -306,7 +328,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: "rgba(79, 142, 247, 0.15)",
+    backgroundColor: theme.primary + "26",
   },
-  distanceText: { fontSize: 13, fontWeight: "600", color: "#4F8EF7" },
-});
+  distanceText: { fontSize: 13, fontWeight: "600", color: theme.primary },
+}); }

@@ -1,8 +1,9 @@
 import BottomNav from "@/components/BottomNav";
 import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
+import { UserAvatar } from "@/components/UserAvatar";
 import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
+import { useTheme } from "@/context/ThemeContext";
 import { InviteDTO, roomsApi } from "@/services/roomApi";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
@@ -37,10 +38,8 @@ function getRoomSubtitle(room: RoomDTO) {
 
 function getInitials(title: string) {
   const words = title.trim().split(" ").filter(Boolean);
-
   if (words.length === 0) return "C";
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-
   return `${words[0][0] ?? ""}${words[1][0] ?? ""}`.toUpperCase();
 }
 
@@ -48,19 +47,17 @@ export default function ChatsTab() {
   const [rooms, setRooms] = useState<RoomDTO[]>([]);
   const [invites, setInvites] = useState<InviteDTO[]>([]);
   const [loading, setLoading] = useState(false);
+  const { theme } = useTheme();
 
   const loadRooms = useCallback(async () => {
     try {
       setLoading(true);
-
       const token = await getToken();
-
       if (!token) {
         Alert.alert("Помилка", "Токен не знайдено");
         setRooms([]);
         return;
       }
-
       const response = await fetch(`${API_BASE_URL}/room/all-rooms`, {
         method: "GET",
         headers: {
@@ -68,18 +65,13 @@ export default function ChatsTab() {
           Authorization: `Bearer ${token}`,
         },
       });
-
       const result = await response.json();
-
       if (!response.ok || !result.success) {
-        console.log("rooms load error", result?.message);
         setRooms([]);
         return;
       }
-
       setRooms(result.data ?? []);
-    } catch (error) {
-      console.log("Failed to load rooms", error);
+    } catch {
       setRooms([]);
     } finally {
       setLoading(false);
@@ -90,8 +82,7 @@ export default function ChatsTab() {
     try {
       const data = await roomsApi.getMyInvites();
       setInvites(data ?? []);
-    } catch (error) {
-      console.log("Failed to load invites", error);
+    } catch {
       setInvites([]);
     }
   }, []);
@@ -111,10 +102,9 @@ export default function ChatsTab() {
   const renderItem = ({ item }: { item: RoomDTO }) => {
     const title = getRoomTitle(item);
     const unreadCount = item.unread ?? 0;
-
     return (
       <Pressable
-        style={styles.roomCard}
+        style={[styles.roomCard, { backgroundColor: theme.card, borderColor: theme.border }]}
         onPress={() =>
           router.push({
             pathname: "/screens/friends/chats/chat",
@@ -122,22 +112,22 @@ export default function ChatsTab() {
           })
         }
       >
-        <View style={styles.avatar}>
-          {item.roomType === "GROUP" ? (
-            <Ionicons name="people-outline" size={22} color="#222" />
-          ) : (
-            <ThemedText style={styles.avatarText}>{getInitials(title)}</ThemedText>
-          )}
+      {item.roomType === "GROUP" ? (
+        <View style={[styles.avatar, { backgroundColor: theme.surface }]}>
+          <Ionicons name="people-outline" size={22} color={theme.icon} />
         </View>
-
+      ) : (
+        <UserAvatar username={title} size={52} />
+      )}
         <View style={styles.roomInfo}>
-          <ThemedText style={styles.roomTitle}>{title}</ThemedText>
-          <ThemedText style={styles.roomSubtitle}>{getRoomSubtitle(item)}</ThemedText>
+          <ThemedText style={[styles.roomTitle, { color: theme.text }]}>{title}</ThemedText>
+          <ThemedText style={[styles.roomSubtitle, { color: theme.secondaryText }]}>
+            {getRoomSubtitle(item)}
+          </ThemedText>
         </View>
-
         {unreadCount > 0 && (
-          <View style={styles.badge}>
-            <ThemedText style={styles.badgeText}>
+          <View style={[styles.badge, { backgroundColor: theme.primary }]}>
+            <ThemedText style={[styles.badgeText, { color: theme.onPrimary }]}>
               {unreadCount > 99 ? "99+" : unreadCount}
             </ThemedText>
           </View>
@@ -147,50 +137,53 @@ export default function ChatsTab() {
   };
 
   return (
-    <ThemedView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
-        <ThemedText style={styles.headerTitle}>Chats</ThemedText>
-
+        <ThemedText style={[styles.headerTitle, { color: theme.text }]}>Chats</ThemedText>
         <Pressable
-          style={styles.plusBtn}
+          style={[styles.plusBtn, { backgroundColor: theme.surface }]}
           onPress={() => router.push("/screens/friends/chats/CreateRoom")}
         >
-          <Ionicons name="add" size={28} color="#111" />
+          <Ionicons name="add" size={28} color={theme.icon} />
         </Pressable>
       </View>
 
       {loading && rooms.length === 0 ? (
         <View style={styles.centerBox}>
-          <ActivityIndicator size="large" />
-          <ThemedText style={styles.loadingText}>Loading chats...</ThemedText>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <ThemedText style={[styles.loadingText, { color: theme.secondaryText }]}>
+            Loading chats...
+          </ThemedText>
         </View>
       ) : (
         <>
           <Pressable
-            style={styles.invitesCard}
+            style={[styles.invitesCard, { backgroundColor: theme.card, borderColor: theme.border }]}
             onPress={() => router.push("/screens/friends/chats/groupInvites")}
           >
-            <View style={styles.invitesIconWrap}>
-              <Ionicons name="people-outline" size={28} color="#222" />
+            <View style={[styles.invitesIconWrap, { backgroundColor: theme.surface }]}>
+              <Ionicons name="people-outline" size={28} color={theme.icon} />
             </View>
-
             <View style={styles.invitesInfo}>
-              <ThemedText style={styles.invitesTitle}>Group invitations</ThemedText>
-              <ThemedText style={styles.invitesSubtitle}>
+              <ThemedText style={[styles.invitesTitle, { color: theme.text }]}>
+                Group invitations
+              </ThemedText>
+              <ThemedText style={[styles.invitesSubtitle, { color: theme.secondaryText }]}>
                 {invites.length} pending invite{invites.length === 1 ? "" : "s"}
               </ThemedText>
             </View>
-
-            <View style={styles.invitesBadge}>
-              <ThemedText style={styles.invitesBadgeText}>{invites.length}</ThemedText>
+            <View style={[styles.invitesBadge, { backgroundColor: theme.primary }]}>
+              <ThemedText style={[styles.invitesBadgeText, { color: theme.onPrimary }]}>
+                {invites.length}
+              </ThemedText>
             </View>
           </Pressable>
 
           {rooms.length === 0 ? (
             <View style={styles.emptyBox}>
-              <Ionicons name="chatbubble-ellipses-outline" size={44} color="#999" />
-              <ThemedText style={styles.emptyTitle}>No chats yet</ThemedText>
-              <ThemedText style={styles.emptySubtitle}>
+              <Ionicons name="chatbubble-ellipses-outline" size={44} color={theme.secondaryText} />
+              <ThemedText style={[styles.emptyTitle, { color: theme.text }]}>No chats yet</ThemedText>
+              <ThemedText style={[styles.emptySubtitle, { color: theme.secondaryText }]}>
                 Create a group or direct room to start chatting
               </ThemedText>
             </View>
@@ -213,46 +206,34 @@ export default function ChatsTab() {
       )}
 
       <BottomNav />
-    </ThemedView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 56,
-    paddingHorizontal: 16,
-    backgroundColor: "#f7f7f7",
-  },
+  container: { flex: 1, paddingTop: 56, paddingHorizontal: 16 },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 20,
   },
-  headerTitle: {
-    fontSize: 36,
-    fontWeight: "700",
-    color: "#111",
-  },
+  headerTitle: { fontSize: 36, fontWeight: "700" },
   plusBtn: {
     width: 46,
     height: 46,
     borderRadius: 14,
-    backgroundColor: "#e9e9e9",
     alignItems: "center",
     justifyContent: "center",
   },
-  listContent: {
-    paddingBottom: 110,
-  },
+  listContent: { paddingBottom: 110 },
   invitesCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#ffffff",
     borderRadius: 18,
     padding: 14,
     marginBottom: 12,
+    borderWidth: 1,
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -263,45 +244,29 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: "#e4e4e4",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
   },
-  invitesInfo: {
-    flex: 1,
-  },
-  invitesTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#111",
-    marginBottom: 2,
-  },
-  invitesSubtitle: {
-    fontSize: 13,
-    color: "#777",
-  },
+  invitesInfo: { flex: 1 },
+  invitesTitle: { fontSize: 17, fontWeight: "700", marginBottom: 2 },
+  invitesSubtitle: { fontSize: 13 },
   invitesBadge: {
     minWidth: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#5b5757",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 10,
     marginLeft: 10,
   },
-  invitesBadgeText: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "700",
-  },
+  invitesBadgeText: { fontSize: 13, fontWeight: "700" },
   roomCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#ffffff",
     borderRadius: 18,
     padding: 14,
+    borderWidth: 1,
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -312,70 +277,27 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: "#e4e4e4",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
   },
-  avatarText: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#222",
-  },
-  roomInfo: {
-    flex: 1,
-  },
-  roomTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#111",
-    marginBottom: 2,
-  },
-  roomSubtitle: {
-    fontSize: 13,
-    color: "#777",
-  },
+  avatarText: { fontSize: 17, fontWeight: "700" },
+  roomInfo: { flex: 1 },
+  roomTitle: { fontSize: 17, fontWeight: "700", marginBottom: 2 },
+  roomSubtitle: { fontSize: 13 },
   badge: {
     minWidth: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#2b6ef2",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 8,
     marginLeft: 10,
   },
-  badgeText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  centerBox: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-  },
-  loadingText: {
-    color: "#666",
-    fontSize: 14,
-  },
-  emptyBox: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  emptyTitle: {
-    marginTop: 14,
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#111",
-  },
-  emptySubtitle: {
-    marginTop: 6,
-    fontSize: 14,
-    color: "#777",
-    textAlign: "center",
-  },
+  badgeText: { fontSize: 12, fontWeight: "700" },
+  centerBox: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
+  loadingText: { fontSize: 14 },
+  emptyBox: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
+  emptyTitle: { marginTop: 14, fontSize: 20, fontWeight: "700" },
+  emptySubtitle: { marginTop: 6, fontSize: 14, textAlign: "center" },
 });

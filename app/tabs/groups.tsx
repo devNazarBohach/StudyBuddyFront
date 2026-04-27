@@ -2,6 +2,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
+import { useTheme } from "@/context/ThemeContext";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -28,6 +29,8 @@ type ApiResponseWrapper<T> = {
 };
 
 export default function CreateRoomScreen() {
+  const { theme } = useTheme();
+  const styles = makeStyles(theme);
   const [groupName, setGroupName] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -109,15 +112,15 @@ export default function CreateRoomScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(theme: import('@/constants/theme').AppTheme) { return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f6f6f6",
+    backgroundColor: theme.background,
     justifyContent: "center",
     padding: 20,
   },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
     borderRadius: 18,
     padding: 20,
   },
@@ -125,28 +128,28 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "700",
     marginBottom: 8,
-    color: "#111",
+    color: theme.text,
   },
   subtitle: {
     fontSize: 14,
-    color: "#666",
+    color: theme.secondaryText,
     marginBottom: 16,
   },
   input: {
     height: 52,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: theme.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     backgroundColor: "#fafafa",
     marginBottom: 16,
     fontSize: 16,
-    color: "#111",
+    color: theme.text,
   },
   button: {
     height: 52,
     borderRadius: 12,
-    backgroundColor: "#111",
+    backgroundColor: theme.text,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -154,8 +157,8 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: "#fff",
+    color: theme.card,
     fontSize: 16,
     fontWeight: "700",
   },
-});
+}); }
