@@ -23,6 +23,7 @@ import { API_BASE_URL } from "@/constants/api";
 import { AppTheme } from "@/constants/theme";
 import { getToken } from "@/constants/tokens";
 import { useTheme } from "@/context/ThemeContext";
+import { logEvent } from "@/services/firebase";
 import { saveSettings } from "@/services/settingsService";
 
 type UserDTO = {
@@ -125,6 +126,7 @@ export default function SettingsScreen() {
       if (json.success) {
         invalidateAvatarCache(user?.username ?? "");
         await loadAvatar();
+        logEvent("avatar_uploaded"); 
         Alert.alert("Success", "Avatar uploaded");
       } else {
         Alert.alert("Error", json.message ?? "Upload failed");
@@ -198,6 +200,7 @@ export default function SettingsScreen() {
 
       setUser((prev) => prev ? { ...prev, role } : prev);
       setEditMode(false);
+      logEvent("profile_updated", { role });
       Alert.alert("Saved", "Profile updated successfully");
     } catch (e: any) {
       Alert.alert("Error", e?.message ?? "Unknown error");
@@ -207,12 +210,12 @@ export default function SettingsScreen() {
   }
 
   async function handleDarkMode(value: boolean) {
-    try { await setDarkMode(value); }
+    try { await setDarkMode(value); logEvent("theme_changed", { darkMode: value });}
     catch { Alert.alert("Error", "Failed to update Dark Mode"); }
   }
 
   async function handleHighContrast(value: boolean) {
-    try { await setHighContrast(value); }
+    try { await setHighContrast(value); logEvent("high_contrast_changed", { enabled: value });}
     catch { Alert.alert("Error", "Failed to update High Contrast"); }
   }
 
@@ -235,7 +238,7 @@ export default function SettingsScreen() {
 
           <ThemedText type="title" style={s.title}>Settings</ThemedText>
 
-          {/* ── Profile card ─────────────────────────────────── */}
+          {/* Profile card */}
           <View style={[s.profileCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <TouchableOpacity onPress={pickAndUploadAvatar} style={s.avatarWrap}>
               <UserAvatar

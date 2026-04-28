@@ -3,6 +3,7 @@ import { ThemedView } from "@/components/themed-view";
 import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
 import { useTheme } from "@/context/ThemeContext";
+import { logEvent } from "@/services/firebase";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -52,6 +53,7 @@ export default function CreateRoomScreen() {
         Alert.alert("Error", result.message || "Failed to create group");
         return;
       }
+      logEvent("group_created");
       router.replace({ pathname: "/screens/friends/chats/chat", params: { roomId: String(result.data.id) } });
     } catch (error) {
       Alert.alert("Error", "An error occurred while creating the group");

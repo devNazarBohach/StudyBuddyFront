@@ -54,6 +54,7 @@ export default function LoginScreen() {
 
       if (!res.token) {
         Alert.alert("Login failed", res.message ?? "Invalid credentials");
+        await logEvent("login_failed", { method: "manual" });
         return;
       }
 
@@ -85,6 +86,7 @@ export default function LoginScreen() {
 
     if (!res.token || !res.user) {
       Alert.alert("Google login failed", res.message ?? "No token returned");
+      await logEvent("login_failed", { method: "google" });
       return;
     }
 
@@ -100,7 +102,8 @@ export default function LoginScreen() {
         // Not critical — silent fail
       }
     }
-
+    await setUser(res.user.username);
+    await logEvent("login", { method: "google" });
     router.replace("/tabs/friends");
   } catch (e: any) {
     if (e?.code === statusCodes.SIGN_IN_CANCELLED) return;
@@ -113,6 +116,7 @@ export default function LoginScreen() {
       return;
     }
     Alert.alert("Google sign-in failed", e?.message ?? "Unknown error");
+    await logEvent("login_failed", { method: "google" });
   } finally {
     setGoogleLoading(false);
   }

@@ -3,6 +3,7 @@ import { ThemedView } from "@/components/themed-view";
 import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
 import { useTheme } from "@/context/ThemeContext";
+import { logEvent } from "@/services/firebase";
 import { Ionicons } from "@expo/vector-icons";
 import { Client, StompSubscription } from "@stomp/stompjs";
 import * as ImagePicker from "expo-image-picker";
@@ -310,7 +311,7 @@ useEffect(() => {
 
   useEffect(() => { scrollToEnd(); }, [messages.length, scrollToEnd]);
 
-  function sendText() {
+  async function sendText() {
     const t = text.trim();
     if (!t || !stompRef.current?.connected) return;
     stompRef.current.publish({
@@ -318,6 +319,7 @@ useEffect(() => {
       body: JSON.stringify({ roomId: Number(room), content: t, messageType: "TEXT" }),
     });
     setText("");
+    await logEvent("message_sent", { type: "text" });
   }
 
   async function pickAndSendPhoto() {
@@ -381,6 +383,7 @@ useEffect(() => {
           fileName: uploadedName, contentType: uploadedContentType,
         }),
       });
+      logEvent("message_sent", { type: "photo" });
     } catch {
       Alert.alert("Error", "Failed to send photo");
     } finally {

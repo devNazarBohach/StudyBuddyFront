@@ -2,15 +2,21 @@ import analytics from "@react-native-firebase/analytics";
 import crashlytics from "@react-native-firebase/crashlytics";
 
 export async function logEvent(name: string, params?: Record<string, any>) {
-  await analytics().logEvent(name, params);
+  try {
+    await analytics().logEvent(name, params);
+  } catch {}
 }
 
 export async function setUser(username: string) {
-  await analytics().setUserId(username);
-  await crashlytics().setUserId(username);
+  try {
+    await analytics().setUserId(username);
+    await crashlytics().setUserId(username);
+  } catch {}
 }
 
 export async function logError(error: Error, context?: string) {
-  crashlytics().log(context ?? "error");
-  await crashlytics().recordError(error);
+  try {
+    crashlytics().log(context ?? "error");
+    await crashlytics().recordError(error);
+  } catch {}
 }
