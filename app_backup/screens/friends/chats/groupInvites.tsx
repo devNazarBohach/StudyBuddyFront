@@ -6,17 +6,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Pressable,
+    StyleSheet,
+    View,
 } from "react-native";
 
 export default function GroupInvitesScreen() {
-  const { theme, fs } = useTheme();
-  const styles = makeStyles(theme, fs);
+  const { theme } = useTheme();
+  const styles = makeStyles(theme);
   const [invites, setInvites] = useState<InviteDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<number | null>(null);
@@ -144,7 +144,7 @@ export default function GroupInvitesScreen() {
   );
 }
 
-function makeStyles(theme: import('@/constants/theme').AppTheme, fs: (n: number) => number) { return StyleSheet.create({
+function makeStyles(theme: import('@/constants/theme').AppTheme) { return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f7f7f7",

@@ -19,7 +19,6 @@ import { ThemedView } from "@/components/themed-view";
 import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
 import { useTheme } from "@/context/ThemeContext";
-import { useScreenTracking } from "@/hooks/useScreenTracking";
 
 type BlogDTO = {
   id: number;
@@ -128,7 +127,6 @@ async function apiRequest(path: string, options?: RequestInit) {
 }
 
 export default function BlogScreen() {
-  useScreenTracking("BlogScreen");
   const { theme, fs } = useTheme();
   const styles = makeStyles(theme, fs);
   const [blogs, setBlogs] = useState<BlogDTO[]>([]);

@@ -8,10 +8,8 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
-import { useScreenTracking } from "@/hooks/useScreenTracking";
 
 export default function ScanQrScreen() {
-  useScreenTracking("ScanQRScreen");
   const { theme, fs } = useTheme();
   const styles = makeStyles(theme, fs);
   const [permission, requestPermission] = useCameraPermissions();

@@ -7,11 +7,8 @@ import { ThemedView } from "@/components/themed-view";
 import { useTheme } from "@/context/ThemeContext";
 import { logEvent } from "@/services/firebase";
 import { useAppState } from "@/state/AppState";
-import { useScreenTracking } from "@/hooks/useScreenTracking";
-import { logFriendRequestSent } from "@/services/firebase";
 
 export default function AddFriendScreen() {
-  useScreenTracking("AddFriendScreen");
   const [friendUsername, setFriendUsername] = useState("");
   const { sendFriendRequest } = useAppState();
   const { theme } = useTheme();
@@ -22,8 +19,7 @@ export default function AddFriendScreen() {
     try {
       await sendFriendRequest(u);
       logEvent("friend_request_sent");
-      logFriendRequestSent();
-    Alert.alert("Success", "Request sent");
+      Alert.alert("Success", "Request sent");
       router.back();
     } catch (e: any) {
       Alert.alert("Error", e?.message ?? "Unknown error");

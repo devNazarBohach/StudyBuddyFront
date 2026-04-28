@@ -139,6 +139,7 @@ export default function SettingsScreen() {
       if (json.success) {
         invalidateAvatarCache(user?.username ?? "");
         await loadAvatar();
+        logEvent("avatar_uploaded");
         Alert.alert("Success", "Avatar uploaded");
       } else {
         Alert.alert("Error", json.message ?? "Upload failed");
@@ -211,6 +212,7 @@ export default function SettingsScreen() {
       }
       setUser((prev) => prev ? { ...prev, role } : prev);
       setEditMode(false);
+      logEvent("profile_updated", { role });
       Alert.alert("Saved", "Profile updated successfully");
     } catch (e: any) {
       Alert.alert("Error", e?.message ?? "Unknown error");

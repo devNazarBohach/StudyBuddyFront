@@ -3,16 +3,10 @@ import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { usePushNotifications } from "@/hooks/usePush";
 import { AppStateProvider } from "@/state/AppState";
 import { Stack } from "expo-router";
-import { logAppOpen, logSessionStart } from "@/services/firebase";
-import { useEffect } from "react";
 
 function RootBootstrap() {
   usePushNotifications();
   useLocationTracking();
-  useEffect(() => {
-    logAppOpen();
-    logSessionStart();
-  }, []);
   return null;
 }
 

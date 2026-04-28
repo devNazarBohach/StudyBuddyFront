@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "@/constants/api";
-import { logLogin, setUser } from "@/services/firebase";
+import { logEvent, setUser } from "@/services/firebase";
 import { statusCodes } from "@react-native-google-signin/google-signin";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -16,7 +16,6 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { getToken, saveToken } from "@/constants/tokens";
 import { useTheme } from "@/context/ThemeContext";
-import { useScreenTracking } from "@/hooks/useScreenTracking";
 import { authApi } from "@/services";
 import {
   configureGoogleSignIn,
@@ -31,7 +30,6 @@ type LoginPayload = {
 };
 
 export default function LoginScreen() {
-  useScreenTracking("LoginScreen");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -56,6 +54,7 @@ export default function LoginScreen() {
 
       if (!res.token) {
         Alert.alert("Login failed", res.message ?? "Invalid credentials");
+        await logEvent("login_failed", { method: "manual" });
         return;
       }
 
@@ -67,7 +66,7 @@ export default function LoginScreen() {
 
       Alert.alert("Success", "Logged in");
       await setUser(username);
-      await logLogin("manual");
+      await logEvent("login", { method: "manual" });
       router.replace("/tabs/friends");
     } catch (e: any) {
       Alert.alert("Network error", e?.message ?? "Unknown error");
@@ -87,6 +86,7 @@ export default function LoginScreen() {
 
     if (!res.token || !res.user) {
       Alert.alert("Google login failed", res.message ?? "No token returned");
+      await logEvent("login_failed", { method: "google" });
       return;
     }
 
@@ -103,7 +103,7 @@ export default function LoginScreen() {
       }
     }
     await setUser(res.user.username);
-    await logLogin("google");
+    await logEvent("login", { method: "google" });
     router.replace("/tabs/friends");
   } catch (e: any) {
     if (e?.code === statusCodes.SIGN_IN_CANCELLED) return;
@@ -116,6 +116,7 @@ export default function LoginScreen() {
       return;
     }
     Alert.alert("Google sign-in failed", e?.message ?? "Unknown error");
+    await logEvent("login_failed", { method: "google" });
   } finally {
     setGoogleLoading(false);
   }

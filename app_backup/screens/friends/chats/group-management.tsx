@@ -3,18 +3,17 @@ import { ThemedView } from "@/components/themed-view";
 import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
 import { useTheme } from "@/context/ThemeContext";
-import { useScreenTracking } from "@/hooks/useScreenTracking";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    View,
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 
@@ -23,9 +22,8 @@ type UserDTO = {
 };
 
 export default function GroupManagementScreen() {
-  useScreenTracking("GroupManagementScreen");
-  const { theme, fs } = useTheme();
-  const styles = makeStyles(theme, fs);
+  const { theme } = useTheme();
+  const styles = makeStyles(theme);
   const { roomId } = useLocalSearchParams<{ roomId?: string }>();
   const room = Number(roomId);
 
@@ -212,7 +210,7 @@ export default function GroupManagementScreen() {
   );
 }
 
-function makeStyles(theme: import('@/constants/theme').AppTheme, fs: (n: number) => number) { return StyleSheet.create({
+function makeStyles(theme: import('@/constants/theme').AppTheme) { return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,

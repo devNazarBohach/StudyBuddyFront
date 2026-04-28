@@ -4,10 +4,8 @@ import { Pressable, StyleSheet } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useTheme } from "@/context/ThemeContext";
-import { useScreenTracking } from "@/hooks/useScreenTracking";
 
 export default function HomeAuthChoiceScreen() {
-  useScreenTracking("HomeAuthChoiceScreen");
   const { theme } = useTheme();
 
   return (

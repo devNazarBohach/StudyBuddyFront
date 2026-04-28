@@ -10,7 +10,6 @@ import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
 import { useTheme } from "@/context/ThemeContext";
 import { useAppState } from "@/state/AppState";
-import { useScreenTracking } from "@/hooks/useScreenTracking";
 
 async function createDirectRoom(username: string) {
   const token = await getToken();
@@ -30,7 +29,6 @@ async function createDirectRoom(username: string) {
 }
 
 export default function FriendsScreen() {
-  useScreenTracking("FriendsScreen");
   const { friends, removeFriend, refreshAll, adminMode } = useAppState();
   const [loadingUsername, setLoadingUsername] = useState<string | null>(null);
   const { theme } = useTheme();
