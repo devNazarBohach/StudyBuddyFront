@@ -15,6 +15,8 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useTheme } from "@/context/ThemeContext";
+import { useScreenTracking } from "@/hooks/useScreenTracking";
+import { logFriendRequestAccepted, logFriendRequestDeclined } from "@/services/firebase";
 import {
   friendsApi,
   FriendshipDTO,
@@ -53,6 +55,7 @@ function prettyDate(value?: string) {
 
 export default function FriendRequestsScreen() {
   const { theme, fs } = useTheme();
+  useScreenTracking("FriendRequestsScreen");
   const styles = makeStyles(theme, fs);
   const [tab, setTab] = useState<TabKey>("incoming");
   const [incoming, setIncoming] = useState<FriendshipDTO[]>([]);
@@ -109,6 +112,7 @@ export default function FriendRequestsScreen() {
     try {
       setBusyUsername(username);
       await friendsApi.acceptRequest(username);
+      logFriendRequestAccepted();
       await loadAll();
       Alert.alert("Success", `@${username} added to friends`);
     } catch (e) {
@@ -122,6 +126,7 @@ export default function FriendRequestsScreen() {
     try {
       setBusyUsername(username);
       await friendsApi.rejectRequest(username);
+      logFriendRequestDeclined();
       await loadAll();
       Alert.alert("Done", `Request from @${username} declined`);
     } catch (e) {

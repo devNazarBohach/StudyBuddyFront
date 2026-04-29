@@ -15,6 +15,9 @@ import {
   View,
 } from "react-native";
 
+import { useScreenTracking } from "@/hooks/useScreenTracking";
+import { logGroupCreated } from "@/services/firebase";
+
 type RoomDTO = {
   id: number;
   roomType: "DIRECT" | "GROUP";
@@ -30,6 +33,7 @@ type ApiResponseWrapper<T> = {
 };
 
 export default function CreateRoomScreen() {
+  useScreenTracking("CreateRoomScreen");
   const [groupName, setGroupName] = useState("");
   const [loading, setLoading] = useState(false);
   const { theme } = useTheme();
@@ -54,6 +58,7 @@ export default function CreateRoomScreen() {
         return;
       }
       logEvent("group_created");
+      logGroupCreated();
       router.replace({ pathname: "/screens/friends/chats/chat", params: { roomId: String(result.data.id) } });
     } catch (error) {
       Alert.alert("Error", "An error occurred while creating the group");

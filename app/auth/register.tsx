@@ -1,6 +1,8 @@
 import { saveToken } from "@/constants/tokens";
 import { useTheme } from "@/context/ThemeContext";
+import { useScreenTracking } from "@/hooks/useScreenTracking";
 import { authApi } from "@/services";
+import { logRegister } from "@/services/firebase";
 import { useAppState } from "@/state/AppState";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -21,6 +23,7 @@ type RegisterPayload = {
 };
 
 export default function RegisterScreen() {
+  useScreenTracking("RegisterScreen");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -65,6 +68,7 @@ export default function RegisterScreen() {
       await saveToken(res.token);
       setMyUsername(payload.username);
       setAdminMode(false);
+      await logRegister("manual");
 
       Alert.alert("Success", "Registered successfully");
       router.replace("/tabs/friends");

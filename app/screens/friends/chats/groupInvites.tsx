@@ -1,6 +1,7 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useTheme } from "@/context/ThemeContext";
+import { useScreenTracking } from "@/hooks/useScreenTracking";
 import { InviteDTO, roomsApi, toUserMessage } from "@/services/roomApi";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
@@ -15,6 +16,7 @@ import {
 } from "react-native";
 
 export default function GroupInvitesScreen() {
+  useScreenTracking("GroupInvitesScreen");
   const { theme, fs } = useTheme();
   const styles = makeStyles(theme, fs);
   const [invites, setInvites] = useState<InviteDTO[]>([]);

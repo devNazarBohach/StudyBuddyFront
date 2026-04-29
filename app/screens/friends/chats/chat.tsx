@@ -4,7 +4,7 @@ import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
 import { useTheme } from "@/context/ThemeContext";
 import { useScreenTracking } from "@/hooks/useScreenTracking";
-import { logEvent } from "@/services/firebase";
+import { logMessageSent } from "@/services/firebase";
 import { Ionicons } from "@expo/vector-icons";
 import { Client, StompSubscription } from "@stomp/stompjs";
 import * as ImagePicker from "expo-image-picker";
@@ -322,7 +322,7 @@ useEffect(() => {
       body: JSON.stringify({ roomId: Number(room), content: t, messageType: "TEXT" }),
     });
     setText("");
-    await logEvent("message_sent", { type: "text" });
+    logMessageSent("text", "DIRECT");
   }
 
   async function pickAndSendPhoto() {
@@ -386,7 +386,7 @@ useEffect(() => {
           fileName: uploadedName, contentType: uploadedContentType,
         }),
       });
-      logEvent("message_sent", { type: "photo" });
+      logMessageSent("photo", "DIRECT");
     } catch {
       Alert.alert("Error", "Failed to send photo");
     } finally {

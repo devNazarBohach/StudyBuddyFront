@@ -29,8 +29,12 @@ import {
 } from "@/context/ThemeContext";
 import { useScreenTracking } from "@/hooks/useScreenTracking";
 import {
+  logAvatarUploaded,
+  logFontScaleChanged,
   logLocationSharedToggle,
-  logThemeChanged
+  logLogout,
+  logProfileUpdated,
+  logThemeChanged,
 } from "@/services/firebase";
 import { saveSettings } from "@/services/settingsService";
 
@@ -139,6 +143,7 @@ export default function SettingsScreen() {
       if (json.success) {
         invalidateAvatarCache(user?.username ?? "");
         await loadAvatar();
+        logAvatarUploaded()
         Alert.alert("Success", "Avatar uploaded");
       } else {
         Alert.alert("Error", json.message ?? "Upload failed");
@@ -211,6 +216,7 @@ export default function SettingsScreen() {
       }
       setUser((prev) => prev ? { ...prev, role } : prev);
       setEditMode(false);
+      logProfileUpdated(role);
       Alert.alert("Saved", "Profile updated successfully");
     } catch (e: any) {
       Alert.alert("Error", e?.message ?? "Unknown error");
@@ -321,7 +327,7 @@ export default function SettingsScreen() {
                 return (
                   <TouchableOpacity
                     key={step}
-                    onPress={() => setFontScale(step)}
+                    onPress={() => { setFontScale(step); logFontScaleChanged(step); }}
                     style={[
                       s.fontStep,
                       {
@@ -380,7 +386,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={[s.actionButton, s.logoutButton, { borderColor: theme.danger }]}
-            onPress={() => router.replace("/auth/login")}
+            onPress={async () => { await logLogout(); router.replace("/auth/login"); }}
           >
             <Ionicons name="log-out-outline" size={20} color={theme.danger} />
             <ThemedText style={[s.logoutText, { color: theme.danger }]}>Logout</ThemedText>

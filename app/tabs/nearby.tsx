@@ -4,6 +4,7 @@ import { ThemedView } from "@/components/themed-view";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useTheme } from "@/context/ThemeContext";
 import { useScreenTracking } from "@/hooks/useScreenTracking";
+import { logNearbyOpened, logNearbyUserTapped } from "@/services/firebase";
 import { locationApi, UserLocationDTO } from "@/services/locationApi";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
@@ -107,6 +108,7 @@ export default function NearbyScreen() {
       const list = await locationApi.getNearbyUsers();
       setUsers(list ?? []);
       setError(null);
+      logNearbyOpened(list?.length ?? 0);
     } catch (e: any) {
       const msg = e?.message ?? "Failed to load nearby users";
       if (msg.toLowerCase().includes("share location disabled")) {
@@ -245,6 +247,7 @@ export default function NearbyScreen() {
                 onPress={() => {
                   // open direct chat — relies on an existing route that
                   // resolves a direct room by username.
+                  logNearbyUserTapped(item.username);
                   Alert.alert(item.username, `Distance: ${formatDistance(item.distanceKm)}`, [
                     { text: "Close", style: "cancel" },
                     {

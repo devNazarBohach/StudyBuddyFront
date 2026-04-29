@@ -3,6 +3,7 @@ import { ThemedView } from "@/components/themed-view";
 import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
 import { useTheme } from "@/context/ThemeContext";
+import { useScreenTracking } from "@/hooks/useScreenTracking";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -30,6 +31,7 @@ type ApiResponseWrapper<T> = {
 
 export default function CreateRoomScreen() {
   const { theme, fs } = useTheme();
+  useScreenTracking("GroupsScreen");
   const styles = makeStyles(theme, fs);
   const [groupName, setGroupName] = useState("");
   const [loading, setLoading] = useState(false);

@@ -4,6 +4,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
 import { useTheme } from "@/context/ThemeContext";
+import { useScreenTracking } from "@/hooks/useScreenTracking";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -22,6 +23,7 @@ type MemberDTO = {
 };
 
 export default function MembersScreen() {
+  useScreenTracking("MembersScreen");
   const { theme } = useTheme();
   const styles = makeStyles(theme);
   const { roomId } = useLocalSearchParams<{ roomId?: string }>();

@@ -19,7 +19,10 @@ export async function logError(error: Error, context?: string) {
 }
 export async function logScreenView(screenName: string) {
   try {
-    await analytics().logScreenView({ screen_name: screenName, screen_class: screenName });
+    await analytics().logEvent("screen_view", {
+      screen_name: screenName,
+      screen_class: screenName,
+    });
   } catch {}
 }
 export async function logScreenExit(screenName: string, durationMs: number) {
