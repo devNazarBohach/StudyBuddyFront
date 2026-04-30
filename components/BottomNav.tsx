@@ -6,7 +6,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { ThemedText } from "./themed-text";
 
 const TABS = [
-  { route: "/tabs", label: "Home", icon: "home", iconOutline: "home-outline" },
+  { route: "/tabs/home", label: "Home", icon: "home", iconOutline: "home-outline" },
   { route: "/tabs/chats", label: "Chats", icon: "chatbubble", iconOutline: "chatbubble-outline" },
   { route: "/tabs/blog", label: "Blog", icon: "newspaper", iconOutline: "newspaper-outline" },
   { route: "/tabs/nearby", label: "Nearby", icon: "map", iconOutline: "map-outline" },

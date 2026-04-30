@@ -1,17 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    View,
 } from "react-native";
 
 import BottomNav from "@/components/BottomNav";
@@ -23,12 +24,30 @@ import { useTheme } from "@/context/ThemeContext";
 import { useScreenTracking } from "@/hooks/useScreenTracking";
 
 type Subject = string;
+type UserRole = "STUDENT" | "TEACHER" | string;
+
+type UserDTO = {
+  id: number;
+  email?: string;
+  username: string;
+  status?: string;
+  enabled?: boolean;
+  createdAt?: string;
+  role?: UserRole;
+};
+
+type StudentProfileDTO = {
+  school: string;
+  faculty: string;
+  subjects: Subject[];
+};
 
 type BlogDTO = {
   id: number;
   title: string;
   content: string;
   subject?: Subject;
+  authorId?: number;
   authorUsername?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -53,26 +72,18 @@ type PageResponse<T> = {
   totalPages: number;
 };
 
-type OfflineLikeAction = {
-  blogId: number;
-  liked: boolean;
-};
-
-type OfflineCommentAction = {
-  localId: string;
-  type: "CREATE" | "UPDATE" | "DELETE";
-  blogId: number;
-  commentId?: number;
-  content?: string;
-  createdAt: string;
-};
-
-const OFFLINE_LIKES_KEY = "offline_blog_likes";
-const OFFLINE_COMMENTS_KEY = "offline_blog_comments";
-const BLOG_CACHE_KEY = "cached_blogs";
-
 const PAGE_SIZE = 10;
-const MAX_CACHED_BLOGS = 30;
+
+function joinUrl(path?: string | null) {
+  if (!path) return null;
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+
+  const base = API_BASE_URL.endsWith("/")
+    ? API_BASE_URL.slice(0, -1)
+    : API_BASE_URL;
+
+  return `${base}${path}`;
+}
 
 function formatDate(value?: string) {
   if (!value) return "no date";
@@ -89,88 +100,8 @@ function formatSubject(value?: string) {
   return value.split("_").join(" ");
 }
 
-function makeLocalId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function makeLocalCommentId() {
-  return -(Date.now() + Math.floor(Math.random() * 100000));
-}
-
-async function getOfflineLikes(): Promise<OfflineLikeAction[]> {
-  try {
-    const raw = await AsyncStorage.getItem(OFFLINE_LIKES_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function saveOfflineLike(action: OfflineLikeAction) {
-  const current = await getOfflineLikes();
-  const filtered = current.filter((x) => x.blogId !== action.blogId);
-
-  await AsyncStorage.setItem(
-    OFFLINE_LIKES_KEY,
-    JSON.stringify([...filtered, action])
-  );
-}
-
-async function removeOfflineLike(blogId: number) {
-  const current = await getOfflineLikes();
-  const filtered = current.filter((x) => x.blogId !== blogId);
-
-  await AsyncStorage.setItem(OFFLINE_LIKES_KEY, JSON.stringify(filtered));
-}
-
-async function getOfflineComments(): Promise<OfflineCommentAction[]> {
-  try {
-    const raw = await AsyncStorage.getItem(OFFLINE_COMMENTS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function saveOfflineComment(action: OfflineCommentAction) {
-  const current = await getOfflineComments();
-
-  await AsyncStorage.setItem(
-    OFFLINE_COMMENTS_KEY,
-    JSON.stringify([...current, action])
-  );
-}
-
-async function saveOfflineCommentsList(actions: OfflineCommentAction[]) {
-  try {
-    await AsyncStorage.setItem(OFFLINE_COMMENTS_KEY, JSON.stringify(actions));
-  } catch (e) {
-    console.log("SAVE OFFLINE COMMENTS LIST ERROR:", e);
-  }
-}
-
-async function getCachedBlogs(): Promise<BlogDTO[]> {
-  try {
-    const raw = await AsyncStorage.getItem(BLOG_CACHE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function saveCachedBlogs(blogs: BlogDTO[]) {
-  try {
-    const sliced = blogs.slice(0, MAX_CACHED_BLOGS);
-    await AsyncStorage.setItem(BLOG_CACHE_KEY, JSON.stringify(sliced));
-  } catch (e) {
-    console.log("SAVE BLOG CACHE ERROR:", e);
-  }
-}
-
 async function apiRequest(path: string, options?: RequestInit) {
   const token = await getToken();
-
-  console.log("API REQUEST:", `${API_BASE_URL}${path}`);
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
@@ -182,9 +113,6 @@ async function apiRequest(path: string, options?: RequestInit) {
   });
 
   const text = await res.text();
-
-  console.log("STATUS:", res.status);
-  console.log("RAW RESPONSE:", text);
 
   let data;
 
@@ -205,130 +133,70 @@ async function apiRequest(path: string, options?: RequestInit) {
   return data.data;
 }
 
-export default function BlogScreen() {
-  useScreenTracking("BlogScreen");
+export default function HomeScreen() {
+  useScreenTracking("HomeScreen");
 
   const { theme, fs } = useTheme();
   const styles = makeStyles(theme, fs);
 
-  const [blogs, setBlogs] = useState<BlogDTO[]>([]);
-  const [comments, setComments] = useState<CommentDTO[]>([]);
+  const [me, setMe] = useState<UserDTO | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
-  const [createOpen, setCreateOpen] = useState(false);
-  const [commentsOpen, setCommentsOpen] = useState(false);
-
-  const [selectedBlog, setSelectedBlog] = useState<BlogDTO | null>(null);
-
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [commentText, setCommentText] = useState("");
+  const [profile, setProfile] = useState<StudentProfileDTO | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [school, setSchool] = useState("");
+  const [faculty, setFaculty] = useState("");
+  const [profileSubjects, setProfileSubjects] = useState<Subject[]>([]);
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [subject, setSubject] = useState<Subject | null>(null);
+  const [blogs, setBlogs] = useState<BlogDTO[]>([]);
+  const [comments, setComments] = useState<CommentDTO[]>([]);
 
   const [page, setPage] = useState(0);
   const [lastPage, setLastPage] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+
+  const [selectedBlog, setSelectedBlog] = useState<BlogDTO | null>(null);
+
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [subject, setSubject] = useState<Subject | null>(null);
+
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editSubject, setEditSubject] = useState<Subject | null>(null);
+
+  const [commentText, setCommentText] = useState("");
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingCommentText, setEditingCommentText] = useState("");
 
-  const loadCachedBlogsToScreen = async () => {
-    const cached = await getCachedBlogs();
-
-    if (cached.length > 0) {
-      setBlogs(cached);
+  const loadMe = async () => {
+    try {
+      const data: UserDTO = await apiRequest("/user/me", { method: "GET" });
+      setMe(data);
+    } catch (e: any) {
+      console.log("LOAD ME ERROR:", e);
+      Alert.alert("Error", e?.message ?? "Cannot load user");
     }
   };
 
-  const syncOfflineLikes = async () => {
-    const actions = await getOfflineLikes();
+  const loadAvatar = async () => {
+    try {
+      const data: string | null = await apiRequest("/user/avatar", {
+        method: "GET",
+      });
 
-    if (actions.length === 0) return;
-
-    console.log("SYNC OFFLINE LIKES:", actions);
-
-    for (const action of actions) {
-      try {
-        if (action.liked) {
-          await apiRequest(`/blog/like/${action.blogId}`, { method: "POST" });
-        } else {
-          await apiRequest(`/blog/dislike/${action.blogId}`, {
-            method: "DELETE",
-          });
-        }
-
-        await removeOfflineLike(action.blogId);
-      } catch (e) {
-        console.log("CANNOT SYNC LIKE YET:", e);
-        break;
-      }
+      setAvatarUrl(data ?? null);
+    } catch (e) {
+      console.log("LOAD AVATAR ERROR:", e);
+      setAvatarUrl(null);
     }
-  };
-
-  const syncOfflineComments = async () => {
-    const token = await getToken();
-
-    if (!token) return false;
-
-    const actions = await getOfflineComments();
-
-    if (actions.length === 0) return false;
-
-    console.log("SYNC OFFLINE COMMENTS:", actions);
-
-    const failedActions: OfflineCommentAction[] = [];
-    let syncedSomething = false;
-
-    for (const action of actions) {
-      try {
-        if (action.type === "CREATE") {
-          if (!action.content?.trim()) {
-            continue;
-          }
-
-          await apiRequest(
-            `/blog/comment/${action.blogId}?content=${encodeURIComponent(
-              action.content.trim()
-            )}&createdAt=${encodeURIComponent(action.createdAt)}`,
-            { method: "POST" }
-          );
-        }
-
-        if (action.type === "UPDATE") {
-          if (!action.commentId || !action.content?.trim()) {
-            continue;
-          }
-
-          await apiRequest(
-            `/blog/comments/${action.commentId}?content=${encodeURIComponent(
-              action.content.trim()
-            )}`,
-            { method: "PUT" }
-          );
-        }
-
-        if (action.type === "DELETE") {
-          if (!action.commentId) {
-            continue;
-          }
-
-          await apiRequest(`/blog/comments/${action.commentId}`, {
-            method: "DELETE",
-          });
-        }
-
-        syncedSomething = true;
-      } catch (e) {
-        console.log("CANNOT SYNC COMMENT ACTION:", action, e);
-        failedActions.push(action);
-      }
-    }
-
-    await saveOfflineCommentsList(failedActions);
-
-    return syncedSomething;
   };
 
   const loadSubjects = async () => {
@@ -337,19 +205,35 @@ export default function BlogScreen() {
         method: "GET",
       });
 
-      const loadedSubjects = data ?? [];
+      const loaded = data ?? [];
+      setSubjects(loaded);
 
-      setSubjects(loadedSubjects);
-
-      if (loadedSubjects.length > 0) {
-        setSubject((prev) => prev ?? loadedSubjects[0]);
-      } else {
-        setSubject(null);
+      if (loaded.length > 0) {
+        setSubject((prev) => prev ?? loaded[0]);
       }
-    } catch (e: any) {
+    } catch (e) {
       console.log("LOAD SUBJECTS ERROR:", e);
       setSubjects([]);
       setSubject(null);
+    }
+  };
+
+  const loadProfile = async () => {
+    try {
+      const data: StudentProfileDTO = await apiRequest("/user/card", {
+        method: "GET",
+      });
+
+      setProfile(data);
+      setSchool(data.school ?? "");
+      setFaculty(data.faculty ?? "");
+      setProfileSubjects(data.subjects ?? []);
+    } catch (e) {
+      console.log("LOAD PROFILE ERROR:", e);
+      setProfile(null);
+      setSchool("");
+      setFaculty("");
+      setProfileSubjects([]);
     }
   };
 
@@ -362,77 +246,44 @@ export default function BlogScreen() {
         setLoading(true);
       }
 
-      await syncOfflineLikes();
-
-      const commentsSynced = await syncOfflineComments();
-
-      if (commentsSynced && selectedBlog) {
-        try {
-          const freshComments = await apiRequest(
-            `/blog/comments/${selectedBlog.id}`,
-            { method: "GET" }
-          );
-
-          setComments(freshComments ?? []);
-        } catch (e) {
-          console.log("REFRESH COMMENTS AFTER SYNC ERROR:", e);
-        }
-      }
-
       const data: PageResponse<BlogDTO> = await apiRequest(
-        `/blog/all?page=${pageToLoad}&size=${PAGE_SIZE}`,
+        `/blog/my?page=${pageToLoad}&size=${PAGE_SIZE}`,
         { method: "GET" }
       );
 
       const newBlogs = data?.content ?? [];
 
       setBlogs((prev) => {
-        let nextBlogs: BlogDTO[];
+        if (!append) return newBlogs;
 
-        if (!append) {
-          nextBlogs = newBlogs;
-        } else {
-          const existingIds = new Set(prev.map((x) => x.id));
-          const filtered = newBlogs.filter((x) => !existingIds.has(x.id));
-          nextBlogs = [...prev, ...filtered];
-        }
+        const existingIds = new Set(prev.map((b) => b.id));
+        const filtered = newBlogs.filter((b) => !existingIds.has(b.id));
 
-        saveCachedBlogs(nextBlogs);
-        return nextBlogs;
+        return [...prev, ...filtered];
       });
 
       setPage(data?.number ?? pageToLoad);
       setLastPage(Boolean(data?.last));
     } catch (e: any) {
       console.log("LOAD BLOGS ERROR:", e);
-
-      if (!append) {
-        const cached = await getCachedBlogs();
-
-        if (cached.length > 0) {
-          setBlogs(cached);
-          setLastPage(true);
-
-          Alert.alert(
-            "Offline mode",
-            "Showing cached blogs because server is unavailable"
-          );
-        } else {
-          Alert.alert("Error", e?.message ?? "Cannot load blogs");
-        }
-      } else {
-        Alert.alert("Offline mode", "Cannot load more blogs while offline");
-      }
+      Alert.alert("Error", e?.message ?? "Cannot load blogs");
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
   };
 
-  const refreshBlogs = async () => {
+  const refreshAll = async () => {
     setPage(0);
     setLastPage(false);
-    await loadBlogs(0, false);
+
+    await Promise.all([
+      loadMe(),
+      loadAvatar(),
+      loadSubjects(),
+      loadProfile(),
+      loadBlogs(0, false),
+    ]);
   };
 
   const loadNextPage = async () => {
@@ -442,13 +293,118 @@ export default function BlogScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadCachedBlogsToScreen();
-      loadSubjects();
-      setPage(0);
-      setLastPage(false);
-      loadBlogs(0, false);
+      refreshAll();
     }, [])
   );
+
+  const uploadAvatar = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert("Permission required", "Allow gallery access to choose avatar");
+        return;
+      }
+
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
+
+      if (picked.canceled || !picked.assets?.[0]) return;
+
+      const asset = picked.assets[0];
+      const token = await getToken();
+
+      const ext = asset.uri.split(".").pop()?.toLowerCase() || "jpg";
+
+      const type =
+        ext === "png"
+          ? "image/png"
+          : ext === "webp"
+          ? "image/webp"
+          : "image/jpeg";
+
+      const formData = new FormData();
+
+      formData.append("file", {
+        uri: asset.uri,
+        name: `avatar.${ext}`,
+        type,
+      } as any);
+
+      setAvatarUploading(true);
+
+      const res = await fetch(`${API_BASE_URL}/user/upload-avatar`, {
+        method: "POST",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      });
+
+      const text = await res.text();
+
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(`Server returned non-JSON: ${text}`);
+      }
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "Cannot upload avatar");
+      }
+
+      setAvatarUrl(data.data);
+      Alert.alert("Success", "Avatar updated");
+    } catch (e: any) {
+      console.log("UPLOAD AVATAR ERROR:", e);
+      Alert.alert("Error", e?.message ?? "Cannot upload avatar");
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const toggleProfileSubject = (s: Subject) => {
+    setProfileSubjects((prev) => {
+      if (prev.includes(s)) {
+        return prev.filter((x) => x !== s);
+      }
+
+      return [...prev, s];
+    });
+  };
+
+  const saveProfile = async () => {
+    try {
+      if (!school.trim()) throw new Error("School is required");
+      if (!faculty.trim()) throw new Error("Faculty is required");
+      if (profileSubjects.length === 0) {
+        throw new Error("At least one subject is required");
+      }
+
+      await apiRequest("/user/update-card", {
+        method: "PUT",
+        body: JSON.stringify({
+          school: school.trim(),
+          faculty: faculty.trim(),
+          subjects: profileSubjects,
+        }),
+      });
+
+      setProfileOpen(false);
+      await loadProfile();
+
+      Alert.alert("Success", "Profile card updated");
+    } catch (e: any) {
+      console.log("SAVE PROFILE ERROR:", e);
+      Alert.alert("Error", e?.message ?? "Cannot save profile");
+    }
+  };
 
   const createBlog = async () => {
     try {
@@ -468,27 +424,87 @@ export default function BlogScreen() {
       setCreateOpen(false);
       setTitle("");
       setContent("");
+      setSubject(subjects[0] ?? null);
 
-      if (subjects.length > 0) {
-        setSubject(subjects[0]);
-      } else {
-        setSubject(null);
-      }
-
-      await refreshBlogs();
+      await loadBlogs(0, false);
     } catch (e: any) {
       console.log("CREATE BLOG ERROR:", e);
       Alert.alert("Error", e?.message ?? "Cannot create blog");
     }
   };
 
+  const openEditBlog = (blog: BlogDTO) => {
+    setSelectedBlog(blog);
+    setEditTitle(blog.title ?? "");
+    setEditContent(blog.content ?? "");
+    setEditSubject(blog.subject ?? subjects[0] ?? null);
+    setEditOpen(true);
+  };
+
+  const closeEditBlog = () => {
+    setSelectedBlog(null);
+    setEditTitle("");
+    setEditContent("");
+    setEditSubject(null);
+    setEditOpen(false);
+  };
+
+  const saveEditedBlog = async () => {
+    try {
+      if (!selectedBlog) return;
+      if (!editTitle.trim()) throw new Error("Title is required");
+      if (!editContent.trim()) throw new Error("Content is required");
+      if (!editSubject) throw new Error("Subject is required");
+
+      await apiRequest("/blog/update", {
+        method: "PUT",
+        body: JSON.stringify({
+          id: selectedBlog.id,
+          title: editTitle.trim(),
+          content: editContent.trim(),
+          subject: editSubject,
+          updatedAt: selectedBlog.updatedAt,
+        }),
+      });
+
+      closeEditBlog();
+      await loadBlogs(0, false);
+    } catch (e: any) {
+      console.log("EDIT BLOG ERROR:", e);
+      Alert.alert("Error", e?.message ?? "Cannot edit blog");
+    }
+  };
+
+  const deleteBlog = async (blog: BlogDTO) => {
+    Alert.alert("Delete blog", "Are you sure you want to delete this blog?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await apiRequest("/blog/delete", {
+              method: "DELETE",
+              body: JSON.stringify({
+                id: blog.id,
+              }),
+            });
+
+            setBlogs((prev) => prev.filter((b) => b.id !== blog.id));
+          } catch (e: any) {
+            console.log("DELETE BLOG ERROR:", e);
+            Alert.alert("Error", e?.message ?? "Cannot delete blog");
+          }
+        },
+      },
+    ]);
+  };
+
   const toggleLike = async (blog: BlogDTO) => {
     const nextLiked = !blog.likedByMe;
 
-    let updatedBlogs: BlogDTO[] = [];
-
-    setBlogs((prev) => {
-      updatedBlogs = prev.map((b) =>
+    setBlogs((prev) =>
+      prev.map((b) =>
         b.id === blog.id
           ? {
               ...b,
@@ -498,11 +514,8 @@ export default function BlogScreen() {
                 : Math.max((b.likesCount ?? 1) - 1, 0),
             }
           : b
-      );
-
-      saveCachedBlogs(updatedBlogs);
-      return updatedBlogs;
-    });
+      )
+    );
 
     try {
       if (nextLiked) {
@@ -510,15 +523,21 @@ export default function BlogScreen() {
       } else {
         await apiRequest(`/blog/dislike/${blog.id}`, { method: "DELETE" });
       }
+    } catch (e: any) {
+      console.log("LIKE ERROR:", e);
+      Alert.alert("Error", e?.message ?? "Cannot update like");
 
-      await removeOfflineLike(blog.id);
-    } catch (e) {
-      console.log("LIKE SAVED OFFLINE:", e);
-
-      await saveOfflineLike({
-        blogId: blog.id,
-        liked: nextLiked,
-      });
+      setBlogs((prev) =>
+        prev.map((b) =>
+          b.id === blog.id
+            ? {
+                ...b,
+                likedByMe: blog.likedByMe,
+                likesCount: blog.likesCount,
+              }
+            : b
+        )
+      );
     }
   };
 
@@ -526,8 +545,11 @@ export default function BlogScreen() {
     try {
       setSelectedBlog(blog);
       setCommentsOpen(true);
+      setCommentText("");
+      setEditingCommentId(null);
+      setEditingCommentText("");
 
-      const data = await apiRequest(`/blog/comments/${blog.id}`, {
+      const data: CommentDTO[] = await apiRequest(`/blog/comments/${blog.id}`, {
         method: "GET",
       });
 
@@ -535,6 +557,49 @@ export default function BlogScreen() {
     } catch (e: any) {
       console.log("LOAD COMMENTS ERROR:", e);
       Alert.alert("Error", e?.message ?? "Cannot load comments");
+    }
+  };
+
+  const closeComments = () => {
+    setCommentsOpen(false);
+    setSelectedBlog(null);
+    setComments([]);
+    setCommentText("");
+    setEditingCommentId(null);
+    setEditingCommentText("");
+  };
+
+  const addComment = async () => {
+    try {
+      if (!selectedBlog) return;
+      if (!commentText.trim()) throw new Error("Comment cannot be empty");
+
+      const text = commentText.trim();
+
+      await apiRequest(
+        `/blog/comment/${selectedBlog.id}?content=${encodeURIComponent(text)}`,
+        { method: "POST" }
+      );
+
+      setCommentText("");
+
+      const data: CommentDTO[] = await apiRequest(
+        `/blog/comments/${selectedBlog.id}`,
+        { method: "GET" }
+      );
+
+      setComments(data ?? []);
+
+      setBlogs((prev) =>
+        prev.map((b) =>
+          b.id === selectedBlog.id
+            ? { ...b, commentsCount: (b.commentsCount ?? 0) + 1 }
+            : b
+        )
+      );
+    } catch (e: any) {
+      console.log("ADD COMMENT ERROR:", e);
+      Alert.alert("Error", e?.message ?? "Cannot add comment");
     }
   };
 
@@ -550,218 +615,126 @@ export default function BlogScreen() {
 
   const saveEditedComment = async () => {
     try {
-      if (!selectedBlog) return;
-      if (!editingCommentId) return;
-
+      if (!selectedBlog || !editingCommentId) return;
       if (!editingCommentText.trim()) {
         throw new Error("Comment cannot be empty");
       }
 
-      const text = editingCommentText.trim();
-      const commentId = editingCommentId;
-
-      setComments((prev) =>
-        prev.map((c) =>
-          c.id === commentId
-            ? {
-                ...c,
-                content: text,
-              }
-            : c
-        )
+      await apiRequest(
+        `/blog/comments/${editingCommentId}?content=${encodeURIComponent(
+          editingCommentText.trim()
+        )}`,
+        { method: "PUT" }
       );
 
-      setEditingCommentId(null);
-      setEditingCommentText("");
+      const data: CommentDTO[] = await apiRequest(
+        `/blog/comments/${selectedBlog.id}`,
+        { method: "GET" }
+      );
 
-      if (commentId < 0) {
-        const actions = await getOfflineComments();
-
-        const updatedActions = actions.map((a) => {
-          if (
-            a.type === "CREATE" &&
-            a.blogId === selectedBlog.id &&
-            a.commentId === commentId
-          ) {
-            return {
-              ...a,
-              content: text,
-            };
-          }
-
-          return a;
-        });
-
-        await saveOfflineCommentsList(updatedActions);
-        return;
-      }
-
-      try {
-        await apiRequest(
-          `/blog/comments/${commentId}?content=${encodeURIComponent(text)}`,
-          { method: "PUT" }
-        );
-
-        const data = await apiRequest(`/blog/comments/${selectedBlog.id}`, {
-          method: "GET",
-        });
-
-        setComments(data ?? []);
-      } catch (e) {
-        console.log("EDIT COMMENT SAVED OFFLINE:", e);
-
-        await saveOfflineComment({
-          localId: makeLocalId(),
-          type: "UPDATE",
-          blogId: selectedBlog.id,
-          commentId,
-          content: text,
-          createdAt: new Date().toISOString(),
-        });
-      }
+      setComments(data ?? []);
+      cancelEditComment();
     } catch (e: any) {
       console.log("EDIT COMMENT ERROR:", e);
-      Alert.alert("Error", e?.message ?? "Cannot edit comment");
+      Alert.alert(
+        "Error",
+        e?.message ??
+          "Cannot edit comment. Backend allows editing only your own comments."
+      );
     }
   };
 
-  const addComment = async () => {
+  const deleteComment = async (commentId: number) => {
     try {
       if (!selectedBlog) return;
-      if (!commentText.trim()) throw new Error("Comment cannot be empty");
 
-      const token = await getToken();
-
-      if (!token) {
-        Alert.alert("Login required", "Please log in first.");
-        return;
-      }
-
-      const text = commentText.trim();
-      const localId = makeLocalId();
-      const localCommentId = makeLocalCommentId();
-      const createdAt = new Date().toISOString();
-
-      setCommentText("");
-
-      setComments((prev) => [
-        ...prev,
-        {
-          id: localCommentId,
-          username: "You",
-          content: text,
-          createdAt,
-        },
-      ]);
-
-      setBlogs((prev) => {
-        const updated = prev.map((b) =>
-          b.id === selectedBlog.id
-            ? { ...b, commentsCount: (b.commentsCount ?? 0) + 1 }
-            : b
-        );
-
-        saveCachedBlogs(updated);
-        return updated;
+      await apiRequest(`/blog/comments/${commentId}`, {
+        method: "DELETE",
       });
 
-      try {
-        await apiRequest(
-          `/blog/comment/${selectedBlog.id}?content=${encodeURIComponent(
-            text
-          )}&createdAt=${encodeURIComponent(createdAt)}`,
-          { method: "POST" }
-        );
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
 
-        const data = await apiRequest(`/blog/comments/${selectedBlog.id}`, {
-          method: "GET",
-        });
-
-        setComments(data ?? []);
-      } catch (e) {
-        console.log("COMMENT SAVED OFFLINE:", e);
-
-        await saveOfflineComment({
-          localId,
-          type: "CREATE",
-          blogId: selectedBlog.id,
-          commentId: localCommentId,
-          content: text,
-          createdAt,
-        });
-      }
-    } catch (e: any) {
-      console.log("ADD COMMENT ERROR:", e);
-      Alert.alert("Error", e?.message ?? "Cannot add comment");
-    }
-  };
-
-  const deleteComment = async (id: number) => {
-    try {
-      if (!selectedBlog) return;
-
-      setComments((prev) => prev.filter((c) => c.id !== id));
-
-      setBlogs((prev) => {
-        const updated = prev.map((b) =>
+      setBlogs((prev) =>
+        prev.map((b) =>
           b.id === selectedBlog.id
             ? {
                 ...b,
                 commentsCount: Math.max((b.commentsCount ?? 1) - 1, 0),
               }
             : b
-        );
-
-        saveCachedBlogs(updated);
-        return updated;
-      });
-
-      if (id < 0) {
-        const actions = await getOfflineComments();
-
-        const filtered = actions.filter((a) => {
-          if (a.type !== "CREATE") return true;
-          return a.commentId !== id;
-        });
-
-        await saveOfflineCommentsList(filtered);
-        return;
-      }
-
-      try {
-        await apiRequest(`/blog/comments/${id}`, {
-          method: "DELETE",
-        });
-
-        const data = await apiRequest(`/blog/comments/${selectedBlog.id}`, {
-          method: "GET",
-        });
-
-        setComments(data ?? []);
-      } catch (e) {
-        console.log("DELETE COMMENT SAVED OFFLINE:", e);
-
-        await saveOfflineComment({
-          localId: makeLocalId(),
-          type: "DELETE",
-          blogId: selectedBlog.id,
-          commentId: id,
-          createdAt: new Date().toISOString(),
-        });
-      }
+        )
+      );
     } catch (e: any) {
       console.log("DELETE COMMENT ERROR:", e);
       Alert.alert("Error", e?.message ?? "Cannot delete comment");
     }
   };
 
+  const renderSubjectPicker = (
+    selected: Subject | null,
+    onSelect: (s: Subject) => void
+  ) => {
+    if (subjects.length === 0) {
+      return <ThemedText style={styles.emptyText}>No subjects available</ThemedText>;
+    }
+
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.subjectScroll}
+      >
+        {subjects.map((s) => (
+          <Pressable
+            key={s}
+            style={[
+              styles.subjectChoice,
+              selected === s && styles.subjectChoiceActive,
+            ]}
+            onPress={() => onSelect(s)}
+          >
+            <ThemedText
+              style={[
+                styles.subjectChoiceText,
+                selected === s && styles.subjectChoiceTextActive,
+              ]}
+            >
+              {formatSubject(s)}
+            </ThemedText>
+          </Pressable>
+        ))}
+      </ScrollView>
+    );
+  };
+
   return (
     <ThemedView style={styles.container}>
       <View style={styles.header}>
+        <Pressable style={styles.profileAvatarWrap} onPress={uploadAvatar}>
+          {joinUrl(avatarUrl) ? (
+            <Image
+              source={{ uri: joinUrl(avatarUrl)! }}
+              style={styles.profileAvatarImage}
+            />
+          ) : (
+            <View style={styles.profileAvatarPlaceholder}>
+              <Ionicons name="person" size={38} color="#fff" />
+            </View>
+          )}
+
+          <View style={styles.avatarUploadBtn}>
+            {avatarUploading ? (
+              <ActivityIndicator size="small" color="#34207E" />
+            ) : (
+              <Ionicons name="camera" size={16} color="#34207E" />
+            )}
+          </View>
+        </Pressable>
+
         <View style={{ flex: 1 }}>
-          <ThemedText style={styles.title}>Study Blogs</ThemedText>
+          <ThemedText style={styles.title}>My Profile</ThemedText>
           <ThemedText style={styles.subtitle}>
-            Share ideas, notes and updates with your group
+            @{me?.username ?? "user"} · {me?.role ?? "role"}
           </ThemedText>
         </View>
 
@@ -770,15 +743,52 @@ export default function BlogScreen() {
         </Pressable>
       </View>
 
+      <View style={styles.profileCard}>
+        <View style={{ flex: 1 }}>
+          <ThemedText style={styles.profileTitle}>
+            {profile?.school || "No school"}
+          </ThemedText>
+
+          <ThemedText style={styles.profileSubtitle}>
+            {profile?.faculty || "No faculty"}
+          </ThemedText>
+
+          <View style={styles.profileSubjectsRow}>
+            {(profile?.subjects ?? []).slice(0, 4).map((s) => (
+              <View key={s} style={styles.profileSubjectPill}>
+                <ThemedText style={styles.profileSubjectText}>
+                  {formatSubject(s)}
+                </ThemedText>
+              </View>
+            ))}
+
+            {!profile && (
+              <ThemedText style={styles.emptyText}>
+                Create your student card
+              </ThemedText>
+            )}
+          </View>
+        </View>
+
+        {me?.role === "STUDENT" && (
+          <Pressable
+            style={styles.editProfileBtn}
+            onPress={() => setProfileOpen(true)}
+          >
+            <Ionicons name="create-outline" size={18} color="#34207E" />
+          </Pressable>
+        )}
+      </View>
+
       <View style={styles.topPanel}>
-        <Pressable style={styles.refreshBtn} onPress={refreshBlogs}>
+        <Pressable style={styles.refreshBtn} onPress={refreshAll}>
           <Ionicons name="refresh-outline" size={18} color="#34207E" />
           <ThemedText style={styles.refreshText}>Refresh</ThemedText>
         </Pressable>
 
         <View style={styles.countPill}>
           <Ionicons name="newspaper-outline" size={16} color="#34207E" />
-          <ThemedText style={styles.countText}>{blogs.length} loaded</ThemedText>
+          <ThemedText style={styles.countText}>{blogs.length} my blogs</ThemedText>
         </View>
       </View>
 
@@ -788,7 +798,7 @@ export default function BlogScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
         refreshing={loading}
-        onRefresh={refreshBlogs}
+        onRefresh={refreshAll}
         onEndReached={loadNextPage}
         onEndReachedThreshold={0.4}
         ListFooterComponent={
@@ -806,7 +816,7 @@ export default function BlogScreen() {
                 <Ionicons name="newspaper-outline" size={38} color="#7B708F" />
               </View>
               <ThemedText style={styles.emptyTitle}>No blogs yet</ThemedText>
-              <ThemedText style={styles.emptyText}>Create the first post</ThemedText>
+              <ThemedText style={styles.emptyText}>Create your first post</ThemedText>
             </View>
           ) : null
         }
@@ -815,7 +825,7 @@ export default function BlogScreen() {
             <View style={styles.cardTop}>
               <View style={styles.avatar}>
                 <ThemedText style={styles.avatarText}>
-                  {(item.authorUsername?.[0] ?? "?").toUpperCase()}
+                  {(item.authorUsername?.[0] ?? me?.username?.[0] ?? "?").toUpperCase()}
                 </ThemedText>
               </View>
 
@@ -823,7 +833,8 @@ export default function BlogScreen() {
                 <ThemedText style={styles.blogTitle}>{item.title}</ThemedText>
 
                 <ThemedText style={styles.meta}>
-                  @{item.authorUsername ?? "unknown"} · {formatDate(item.createdAt)}
+                  @{item.authorUsername ?? me?.username ?? "unknown"} ·{" "}
+                  {formatDate(item.createdAt)}
                 </ThemedText>
 
                 {!!item.subject && (
@@ -878,9 +889,101 @@ export default function BlogScreen() {
                 <ThemedText style={styles.actionText}>Comments</ThemedText>
               </Pressable>
             </View>
+
+            <View style={styles.ownerActions}>
+              <Pressable style={styles.editBlogBtn} onPress={() => openEditBlog(item)}>
+                <Ionicons name="create-outline" size={17} color="#34207E" />
+                <ThemedText style={styles.editBlogText}>Edit</ThemedText>
+              </Pressable>
+
+              <Pressable style={styles.deleteBlogBtn} onPress={() => deleteBlog(item)}>
+                <Ionicons name="trash-outline" size={17} color="#E5484D" />
+                <ThemedText style={styles.deleteBlogText}>Delete</ThemedText>
+              </Pressable>
+            </View>
           </View>
         )}
       />
+
+      <Modal visible={profileOpen} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>Student card</ThemedText>
+
+              <Pressable
+                style={styles.closeCircle}
+                onPress={() => setProfileOpen(false)}
+              >
+                <Ionicons name="close" size={20} color="#34207E" />
+              </Pressable>
+            </View>
+
+            <TextInput
+              style={styles.input}
+              placeholder="School"
+              placeholderTextColor="#8D83A3"
+              value={school}
+              onChangeText={setSchool}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Faculty"
+              placeholderTextColor="#8D83A3"
+              value={faculty}
+              onChangeText={setFaculty}
+            />
+
+            <View style={styles.subjectBox}>
+              <ThemedText style={styles.subjectLabel}>Subjects</ThemedText>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.subjectScroll}
+              >
+                {subjects.map((s) => {
+                  const active = profileSubjects.includes(s);
+
+                  return (
+                    <Pressable
+                      key={s}
+                      style={[
+                        styles.subjectChoice,
+                        active && styles.subjectChoiceActive,
+                      ]}
+                      onPress={() => toggleProfileSubject(s)}
+                    >
+                      <ThemedText
+                        style={[
+                          styles.subjectChoiceText,
+                          active && styles.subjectChoiceTextActive,
+                        ]}
+                      >
+                        {formatSubject(s)}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            <View style={styles.modalActions}>
+              <Pressable
+                style={styles.cancelBtn}
+                onPress={() => setProfileOpen(false)}
+              >
+                <ThemedText style={styles.cancelText}>Cancel</ThemedText>
+              </Pressable>
+
+              <Pressable style={styles.saveBtn} onPress={saveProfile}>
+                <ThemedText style={styles.saveText}>Save</ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={createOpen} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -919,36 +1022,7 @@ export default function BlogScreen() {
 
             <View style={styles.subjectBox}>
               <ThemedText style={styles.subjectLabel}>Subject</ThemedText>
-
-              {subjects.length === 0 ? (
-                <ThemedText style={styles.emptyText}>No subjects available</ThemedText>
-              ) : (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.subjectScroll}
-                >
-                  {subjects.map((s) => (
-                    <Pressable
-                      key={s}
-                      style={[
-                        styles.subjectChoice,
-                        subject === s && styles.subjectChoiceActive,
-                      ]}
-                      onPress={() => setSubject(s)}
-                    >
-                      <ThemedText
-                        style={[
-                          styles.subjectChoiceText,
-                          subject === s && styles.subjectChoiceTextActive,
-                        ]}
-                      >
-                        {formatSubject(s)}
-                      </ThemedText>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              )}
+              {renderSubjectPicker(subject, setSubject)}
             </View>
 
             <View style={styles.modalActions}>
@@ -975,6 +1049,56 @@ export default function BlogScreen() {
         </View>
       </Modal>
 
+      <Modal visible={editOpen} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>Edit blog</ThemedText>
+
+              <Pressable style={styles.closeCircle} onPress={closeEditBlog}>
+                <Ionicons name="close" size={20} color="#34207E" />
+              </Pressable>
+            </View>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Title"
+              placeholderTextColor="#8D83A3"
+              value={editTitle}
+              onChangeText={setEditTitle}
+            />
+
+            <TextInput
+              style={[styles.input, styles.bigInput]}
+              placeholder="Content"
+              placeholderTextColor="#8D83A3"
+              value={editContent}
+              onChangeText={setEditContent}
+              multiline
+            />
+
+            <View style={styles.subjectBox}>
+              <ThemedText style={styles.subjectLabel}>Subject</ThemedText>
+              {renderSubjectPicker(editSubject, setEditSubject)}
+            </View>
+
+            <View style={styles.modalActions}>
+              <Pressable style={styles.cancelBtn} onPress={closeEditBlog}>
+                <ThemedText style={styles.cancelText}>Cancel</ThemedText>
+              </Pressable>
+
+              <Pressable
+                style={[styles.saveBtn, !editSubject && styles.disabledBtn]}
+                onPress={saveEditedBlog}
+                disabled={!editSubject}
+              >
+                <ThemedText style={styles.saveText}>Save</ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={commentsOpen} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, styles.commentsModal]}>
@@ -986,17 +1110,7 @@ export default function BlogScreen() {
                 </ThemedText>
               </View>
 
-              <Pressable
-                style={styles.closeCircle}
-                onPress={() => {
-                  setCommentsOpen(false);
-                  setSelectedBlog(null);
-                  setComments([]);
-                  setCommentText("");
-                  setEditingCommentId(null);
-                  setEditingCommentText("");
-                }}
-              >
+              <Pressable style={styles.closeCircle} onPress={closeComments}>
                 <Ionicons name="close" size={20} color="#34207E" />
               </Pressable>
             </View>
@@ -1098,17 +1212,7 @@ export default function BlogScreen() {
             />
 
             <View style={styles.modalActions}>
-              <Pressable
-                style={styles.cancelBtn}
-                onPress={() => {
-                  setCommentsOpen(false);
-                  setSelectedBlog(null);
-                  setComments([]);
-                  setCommentText("");
-                  setEditingCommentId(null);
-                  setEditingCommentText("");
-                }}
-              >
+              <Pressable style={styles.cancelBtn} onPress={closeComments}>
                 <ThemedText style={styles.cancelText}>Close</ThemedText>
               </Pressable>
 
@@ -1147,8 +1251,48 @@ function makeStyles(
       gap: 14,
     },
 
+    profileAvatarWrap: {
+      width: 76,
+      height: 76,
+      borderRadius: 38,
+      backgroundColor: "#ffffff24",
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: "#ffffff42",
+    },
+
+    profileAvatarImage: {
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+    },
+
+    profileAvatarPlaceholder: {
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#ffffff22",
+    },
+
+    avatarUploadBtn: {
+      position: "absolute",
+      right: -2,
+      bottom: -2,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: "#fff",
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: "#DDD3FF",
+    },
+
     title: {
-      fontSize: fs(30),
+      fontSize: fs(29),
       fontWeight: "900",
       color: theme.card,
     },
@@ -1169,6 +1313,60 @@ function makeStyles(
       justifyContent: "center",
       borderWidth: 1,
       borderColor: "#ffffff38",
+    },
+
+    profileCard: {
+      marginHorizontal: 16,
+      marginTop: 16,
+      backgroundColor: theme.card,
+      borderRadius: 24,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+
+    profileTitle: {
+      fontSize: fs(18),
+      fontWeight: "900",
+      color: theme.text,
+    },
+
+    profileSubtitle: {
+      marginTop: 4,
+      fontSize: fs(13),
+      color: theme.secondaryText,
+    },
+
+    profileSubjectsRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 7,
+      marginTop: 10,
+    },
+
+    profileSubjectPill: {
+      backgroundColor: theme.surface,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+    },
+
+    profileSubjectText: {
+      fontSize: fs(11),
+      fontWeight: "900",
+      color: theme.primary,
+    },
+
+    editProfileBtn: {
+      width: 42,
+      height: 42,
+      borderRadius: 16,
+      backgroundColor: theme.surface,
+      alignItems: "center",
+      justifyContent: "center",
     },
 
     topPanel: {
@@ -1339,6 +1537,46 @@ function makeStyles(
 
     actionTextWhite: {
       color: theme.card,
+    },
+
+    ownerActions: {
+      flexDirection: "row",
+      gap: 10,
+      marginTop: 10,
+    },
+
+    editBlogBtn: {
+      flex: 1,
+      height: 42,
+      borderRadius: 15,
+      backgroundColor: theme.surface,
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "row",
+      gap: 7,
+    },
+
+    editBlogText: {
+      fontSize: fs(13),
+      fontWeight: "900",
+      color: theme.primary,
+    },
+
+    deleteBlogBtn: {
+      flex: 1,
+      height: 42,
+      borderRadius: 15,
+      backgroundColor: theme.danger + "18",
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "row",
+      gap: 7,
+    },
+
+    deleteBlogText: {
+      fontSize: fs(13),
+      fontWeight: "900",
+      color: theme.danger,
     },
 
     emptyBox: {
