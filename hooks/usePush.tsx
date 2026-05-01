@@ -19,7 +19,7 @@ Notifications.setNotificationHandler({
 
 async function registerForPushToken(): Promise<string | null> {
   if (!Device.isDevice) {
-    console.log("[push] not a physical device — skipping");
+    console.log("[push] not a physical device - skipping");
     return null;
   }
 

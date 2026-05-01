@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -21,6 +20,20 @@ import { API_BASE_URL } from "@/constants/api";
 import { getToken } from "@/constants/tokens";
 import { useTheme } from "@/context/ThemeContext";
 import { useScreenTracking } from "@/hooks/useScreenTracking";
+import {
+  getCachedBlogs,
+  getCachedComments,
+  isNetworkError,
+  makeLocalCommentId,
+  makeLocalId,
+  queueOfflineCommentAction,
+  removeOfflineLike,
+  saveCachedBlogs,
+  saveCachedComments,
+  saveOfflineLike,
+  syncOfflineComments,
+  syncOfflineLikes,
+} from "@/services/offlineService";
 
 type Subject = string;
 
@@ -53,31 +66,10 @@ type PageResponse<T> = {
   totalPages: number;
 };
 
-type OfflineLikeAction = {
-  blogId: number;
-  liked: boolean;
-};
-
-type OfflineCommentAction = {
-  localId: string;
-  type: "CREATE" | "UPDATE" | "DELETE";
-  blogId: number;
-  commentId?: number;
-  content?: string;
-  createdAt: string;
-};
-
-const OFFLINE_LIKES_KEY = "offline_blog_likes";
-const OFFLINE_COMMENTS_KEY = "offline_blog_comments";
-const BLOG_CACHE_KEY = "cached_blogs";
-const COMMENT_CACHE_PREFIX = "cached_blog_comments_";
-
 const PAGE_SIZE = 10;
-const MAX_CACHED_BLOGS = 30;
 
 function formatDate(value?: string) {
   if (!value) return "no date";
-
   try {
     return new Date(value).toLocaleString();
   } catch {
@@ -90,199 +82,8 @@ function formatSubject(value?: string) {
   return value.split("_").join(" ");
 }
 
-function makeLocalId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function makeLocalCommentId() {
-  return -(Date.now() + Math.floor(Math.random() * 100000));
-}
-
-async function getOfflineLikes(): Promise<OfflineLikeAction[]> {
-  try {
-    const raw = await AsyncStorage.getItem(OFFLINE_LIKES_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function saveOfflineLike(action: OfflineLikeAction) {
-  const current = await getOfflineLikes();
-  const filtered = current.filter((x) => x.blogId !== action.blogId);
-
-  await AsyncStorage.setItem(
-    OFFLINE_LIKES_KEY,
-    JSON.stringify([...filtered, action])
-  );
-}
-
-async function removeOfflineLike(blogId: number) {
-  const current = await getOfflineLikes();
-  const filtered = current.filter((x) => x.blogId !== blogId);
-
-  await AsyncStorage.setItem(OFFLINE_LIKES_KEY, JSON.stringify(filtered));
-}
-
-async function getOfflineComments(): Promise<OfflineCommentAction[]> {
-  try {
-    const raw = await AsyncStorage.getItem(OFFLINE_COMMENTS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function saveOfflineComment(action: OfflineCommentAction) {
-  const current = await getOfflineComments();
-
-  await AsyncStorage.setItem(
-    OFFLINE_COMMENTS_KEY,
-    JSON.stringify([...current, action])
-  );
-}
-
-async function saveOfflineCommentsList(actions: OfflineCommentAction[]) {
-  try {
-    await AsyncStorage.setItem(OFFLINE_COMMENTS_KEY, JSON.stringify(actions));
-  } catch (e) {
-    console.log("SAVE OFFLINE COMMENTS LIST ERROR:", e);
-  }
-}
-async function getCachedComments(blogId: number): Promise<CommentDTO[]> {
-  try {
-    const raw = await AsyncStorage.getItem(`${COMMENT_CACHE_PREFIX}${blogId}`);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function saveCachedComments(blogId: number, list: CommentDTO[]) {
-  try {
-    await AsyncStorage.setItem(
-      `${COMMENT_CACHE_PREFIX}${blogId}`,
-      JSON.stringify(list)
-    );
-  } catch (e) {
-    console.log("SAVE COMMENTS CACHE ERROR:", e);
-  }
-}
-
-async function queueOfflineCommentAction(action: OfflineCommentAction) {
-  const actions = await getOfflineComments();
-
-  let next = [...actions];
-
-  const id = action.commentId;
-
-  if (action.type === "CREATE") {
-    next.push(action);
-    await saveOfflineCommentsList(next);
-    return;
-  }
-
-  if (action.type === "UPDATE") {
-    if (!id || !action.content?.trim()) return;
-
-    const existingCreateIndex = next.findIndex(
-      (a) =>
-        a.type === "CREATE" &&
-        a.blogId === action.blogId &&
-        a.commentId === id
-    );
-
-    if (existingCreateIndex !== -1) {
-      next[existingCreateIndex] = {
-        ...next[existingCreateIndex],
-        content: action.content.trim(),
-      };
-
-      await saveOfflineCommentsList(next);
-      return;
-    }
-
-    const alreadyDeleted = next.some(
-      (a) =>
-        a.type === "DELETE" &&
-        a.blogId === action.blogId &&
-        a.commentId === id
-    );
-
-    if (alreadyDeleted) return;
-
-    next = next.filter(
-      (a) =>
-        !(
-          a.type === "UPDATE" &&
-          a.blogId === action.blogId &&
-          a.commentId === id
-        )
-    );
-
-    next.push(action);
-    await saveOfflineCommentsList(next);
-    return;
-  }
-
-  if (action.type === "DELETE") {
-    if (!id) return;
-
-    const hasOfflineCreate = next.some(
-      (a) =>
-        a.type === "CREATE" &&
-        a.blogId === action.blogId &&
-        a.commentId === id
-    );
-
-    if (hasOfflineCreate) {
-      next = next.filter(
-        (a) =>
-          !(
-            a.blogId === action.blogId &&
-            a.commentId === id
-          )
-      );
-
-      await saveOfflineCommentsList(next);
-      return;
-    }
-
-    next = next.filter(
-      (a) =>
-        !(
-          a.blogId === action.blogId &&
-          a.commentId === id
-        )
-    );
-
-    next.push(action);
-    await saveOfflineCommentsList(next);
-  }
-}
-
-async function getCachedBlogs(): Promise<BlogDTO[]> {
-  try {
-    const raw = await AsyncStorage.getItem(BLOG_CACHE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function saveCachedBlogs(blogs: BlogDTO[]) {
-  try {
-    const sliced = blogs.slice(0, MAX_CACHED_BLOGS);
-    await AsyncStorage.setItem(BLOG_CACHE_KEY, JSON.stringify(sliced));
-  } catch (e) {
-    console.log("SAVE BLOG CACHE ERROR:", e);
-  }
-}
-
 async function apiRequest(path: string, options?: RequestInit) {
   const token = await getToken();
-
-  console.log("API REQUEST:", `${API_BASE_URL}${path}`);
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
@@ -294,11 +95,7 @@ async function apiRequest(path: string, options?: RequestInit) {
   });
 
   const text = await res.text();
-
-  console.log("STATUS:", res.status);
-  console.log("RAW RESPONSE:", text);
-
-  let data;
+  let data: any;
 
   try {
     data = JSON.parse(text);
@@ -322,6 +119,9 @@ export default function BlogScreen() {
 
   const { theme, fs } = useTheme();
   const styles = makeStyles(theme, fs);
+
+  // FIX: track myUsername to show in offline comments instead of "You"
+  const [myUsername, setMyUsername] = useState("me");
 
   const [blogs, setBlogs] = useState<BlogDTO[]>([]);
   const [comments, setComments] = useState<CommentDTO[]>([]);
@@ -348,105 +148,16 @@ export default function BlogScreen() {
 
   const loadCachedBlogsToScreen = async () => {
     const cached = await getCachedBlogs();
-
     if (cached.length > 0) {
-      setBlogs(cached);
+      setBlogs(cached as BlogDTO[]);
     }
   };
-
-  const syncOfflineLikes = async () => {
-    const actions = await getOfflineLikes();
-
-    if (actions.length === 0) return;
-
-    console.log("SYNC OFFLINE LIKES:", actions);
-
-    for (const action of actions) {
-      try {
-        if (action.liked) {
-          await apiRequest(`/blog/like/${action.blogId}`, { method: "POST" });
-        } else {
-          await apiRequest(`/blog/dislike/${action.blogId}`, {
-            method: "DELETE",
-          });
-        }
-
-        await removeOfflineLike(action.blogId);
-      } catch (e) {
-        console.log("CANNOT SYNC LIKE YET:", e);
-        break;
-      }
-    }
-  };
-
-const syncOfflineComments = async () => {
-  const token = await getToken();
-
-  if (!token) return false;
-
-  const actions = await getOfflineComments();
-
-  if (actions.length === 0) return false;
-
-  console.log("SYNC OFFLINE COMMENTS:", actions);
-
-  const failedActions: OfflineCommentAction[] = [];
-  let syncedSomething = false;
-
-  for (const action of actions) {
-    try {
-      if (action.type === "CREATE") {
-        if (!action.content?.trim()) continue;
-
-        await apiRequest(
-          `/blog/comment/${action.blogId}?content=${encodeURIComponent(
-            action.content.trim()
-          )}&createdAt=${encodeURIComponent(action.createdAt)}`,
-          { method: "POST" }
-        );
-      }
-
-      if (action.type === "UPDATE") {
-        if (!action.commentId || !action.content?.trim()) continue;
-
-        await apiRequest(
-          `/blog/comments/${action.commentId}?content=${encodeURIComponent(
-            action.content.trim()
-          )}`,
-          { method: "PUT" }
-        );
-      }
-
-      if (action.type === "DELETE") {
-        if (!action.commentId) continue;
-
-        await apiRequest(`/blog/comments/${action.commentId}`, {
-          method: "DELETE",
-        });
-      }
-
-      syncedSomething = true;
-    } catch (e) {
-      console.log("CANNOT SYNC COMMENT ACTION:", action, e);
-      failedActions.push(action);
-    }
-  }
-
-  await saveOfflineCommentsList(failedActions);
-
-  return syncedSomething;
-};
 
   const loadSubjects = async () => {
     try {
-      const data: Subject[] = await apiRequest("/user/subjects", {
-        method: "GET",
-      });
-
+      const data: Subject[] = await apiRequest("/user/subjects", { method: "GET" });
       const loadedSubjects = data ?? [];
-
       setSubjects(loadedSubjects);
-
       if (loadedSubjects.length > 0) {
         setSubject((prev) => prev ?? loadedSubjects[0]);
       } else {
@@ -459,6 +170,14 @@ const syncOfflineComments = async () => {
     }
   };
 
+  // FIX: load username once so offline comments show real name
+  const loadMe = async () => {
+    try {
+      const data = await apiRequest("/user/me", { method: "GET" });
+      if (data?.username) setMyUsername(data.username);
+    } catch {}
+  };
+
   const loadBlogs = async (pageToLoad = 0, append = false) => {
     try {
       if (append) {
@@ -468,9 +187,10 @@ const syncOfflineComments = async () => {
         setLoading(true);
       }
 
-      await syncOfflineLikes();
+      // FIX: use shared service (failedActions pattern, proper error detection)
+      await syncOfflineLikes(apiRequest);
 
-      const commentsSynced = await syncOfflineComments();
+      const commentsSynced = await syncOfflineComments(apiRequest);
 
       if (commentsSynced && selectedBlog) {
         try {
@@ -478,7 +198,6 @@ const syncOfflineComments = async () => {
             `/blog/comments/${selectedBlog.id}`,
             { method: "GET" }
           );
-
           setComments(freshComments ?? []);
         } catch (e) {
           console.log("REFRESH COMMENTS AFTER SYNC ERROR:", e);
@@ -516,13 +235,9 @@ const syncOfflineComments = async () => {
         const cached = await getCachedBlogs();
 
         if (cached.length > 0) {
-          setBlogs(cached);
+          setBlogs(cached as BlogDTO[]);
           setLastPage(true);
-
-          Alert.alert(
-            "Offline mode",
-            "Showing cached blogs because server is unavailable"
-          );
+          Alert.alert("Offline mode", "Showing cached blogs because server is unavailable");
         } else {
           Alert.alert("Error", e?.message ?? "Cannot load blogs");
         }
@@ -548,6 +263,7 @@ const syncOfflineComments = async () => {
 
   useFocusEffect(
     useCallback(() => {
+      loadMe();
       loadCachedBlogsToScreen();
       loadSubjects();
       setPage(0);
@@ -605,7 +321,6 @@ const syncOfflineComments = async () => {
             }
           : b
       );
-
       saveCachedBlogs(updatedBlogs);
       return updatedBlogs;
     });
@@ -616,59 +331,68 @@ const syncOfflineComments = async () => {
       } else {
         await apiRequest(`/blog/dislike/${blog.id}`, { method: "DELETE" });
       }
-
       await removeOfflineLike(blog.id);
     } catch (e) {
-      console.log("LIKE SAVED OFFLINE:", e);
-
-      await saveOfflineLike({
-        blogId: blog.id,
-        liked: nextLiked,
-      });
+      // FIX: only queue if truly offline, not server errors like 409
+      if (isNetworkError(e)) {
+        console.log("LIKE SAVED OFFLINE:", blog.id);
+        await saveOfflineLike({ blogId: blog.id, liked: nextLiked });
+      } else {
+        // Server error — rollback UI
+        console.log("LIKE SERVER ERROR:", (e as Error).message);
+        setBlogs((prev) => {
+          const rolled = prev.map((b) =>
+            b.id === blog.id
+              ? {
+                  ...b,
+                  likedByMe: blog.likedByMe,
+                  likesCount: blog.likesCount,
+                }
+              : b
+          );
+          saveCachedBlogs(rolled);
+          return rolled;
+        });
+      }
     }
   };
 
   const openComments = async (blog: BlogDTO) => {
-  setSelectedBlog(blog);
-  setCommentsOpen(true);
-  setEditingCommentId(null);
-  setEditingCommentText("");
+    setSelectedBlog(blog);
+    setCommentsOpen(true);
+    setEditingCommentId(null);
+    setEditingCommentText("");
 
-  const cached = await getCachedComments(blog.id);
-
-  if (cached.length > 0) {
-    setComments(cached);
-  } else {
-    setComments([]);
-  }
-
-  try {
-    await syncOfflineComments();
-
-    const data = await apiRequest(`/blog/comments/${blog.id}`, {
-      method: "GET",
-    });
-
-    const freshComments = data ?? [];
-
-    setComments(freshComments);
-    await saveCachedComments(blog.id, freshComments);
-  } catch (e: any) {
-    console.log("LOAD COMMENTS OFFLINE/CACHE MODE:", e);
+    const cached = await getCachedComments(blog.id);
 
     if (cached.length > 0) {
-      Alert.alert(
-        "Offline mode",
-        "Showing cached comments. You can edit or delete them, and changes will sync later."
-      );
+      setComments(cached as CommentDTO[]);
     } else {
-      Alert.alert(
-        "Offline mode",
-        "Comments are not cached yet, but new offline comments will still work."
-      );
+      setComments([]);
     }
-  }
-};
+
+    try {
+      // FIX: only sync once per loadBlogs, not on every openComments
+      const data = await apiRequest(`/blog/comments/${blog.id}`, { method: "GET" });
+      const freshComments = data ?? [];
+      setComments(freshComments);
+      await saveCachedComments(blog.id, freshComments);
+    } catch (e: any) {
+      console.log("LOAD COMMENTS OFFLINE/CACHE MODE:", e);
+
+      if (cached.length > 0) {
+        Alert.alert(
+          "Offline mode",
+          "Showing cached comments. Changes will sync later."
+        );
+      } else {
+        Alert.alert(
+          "Offline mode",
+          "Comments are not cached yet, but new comments will work offline."
+        );
+      }
+    }
+  };
 
   const startEditComment = (comment: CommentDTO) => {
     setEditingCommentId(comment.id);
@@ -680,209 +404,199 @@ const syncOfflineComments = async () => {
     setEditingCommentText("");
   };
 
-const saveEditedComment = async () => {
-  try {
-    if (!selectedBlog) return;
-    if (!editingCommentId) return;
-
-    if (!editingCommentText.trim()) {
-      throw new Error("Comment cannot be empty");
-    }
-
-    const text = editingCommentText.trim();
-    const commentId = editingCommentId;
-    const blogId = selectedBlog.id;
-
-    let updatedComments: CommentDTO[] = [];
-
-    setComments((prev) => {
-      updatedComments = prev.map((c) =>
-        c.id === commentId
-          ? {
-              ...c,
-              content: text,
-            }
-          : c
-      );
-
-      saveCachedComments(blogId, updatedComments);
-      return updatedComments;
-    });
-
-    setEditingCommentId(null);
-    setEditingCommentText("");
-
+  const saveEditedComment = async () => {
     try {
-      if (commentId < 0) {
-        throw new Error("Local offline comment");
+      if (!selectedBlog || !editingCommentId) return;
+
+      if (!editingCommentText.trim()) {
+        throw new Error("Comment cannot be empty");
       }
 
-      await apiRequest(
-        `/blog/comments/${commentId}?content=${encodeURIComponent(text)}`,
-        { method: "PUT" }
-      );
+      const text = editingCommentText.trim();
+      const commentId = editingCommentId;
+      const blogId = selectedBlog.id;
 
-      const data = await apiRequest(`/blog/comments/${blogId}`, {
-        method: "GET",
+      setComments((prev) => {
+        const updated = prev.map((c) =>
+          c.id === commentId ? { ...c, content: text } : c
+        );
+        saveCachedComments(blogId, updated);
+        return updated;
       });
 
-      const freshComments = data ?? [];
-      setComments(freshComments);
-      await saveCachedComments(blogId, freshComments);
-    } catch (e) {
-      console.log("EDIT COMMENT SAVED OFFLINE:", e);
+      setEditingCommentId(null);
+      setEditingCommentText("");
 
-      await queueOfflineCommentAction({
-        localId: makeLocalId(),
-        type: "UPDATE",
-        blogId,
-        commentId,
-        content: text,
-        createdAt: new Date().toISOString(),
-      });
+      try {
+        if (commentId < 0) throw new Error("Local offline comment");
+
+        await apiRequest(
+          `/blog/comments/${commentId}?content=${encodeURIComponent(text)}`,
+          { method: "PUT" }
+        );
+
+        const data = await apiRequest(`/blog/comments/${blogId}`, { method: "GET" });
+        const freshComments = data ?? [];
+        setComments(freshComments);
+        await saveCachedComments(blogId, freshComments);
+      } catch (e) {
+        // FIX: only queue on real network error
+        if (isNetworkError(e) || commentId < 0) {
+          await queueOfflineCommentAction({
+            localId: makeLocalId(),
+            type: "UPDATE",
+            blogId,
+            commentId,
+            content: text,
+            createdAt: new Date().toISOString(),
+          });
+        } else {
+          console.log("EDIT COMMENT SERVER ERROR:", (e as Error).message);
+          Alert.alert("Error", "Could not edit comment");
+        }
+      }
+    } catch (e: any) {
+      console.log("EDIT COMMENT ERROR:", e);
+      Alert.alert("Error", e?.message ?? "Cannot edit comment");
     }
-  } catch (e: any) {
-    console.log("EDIT COMMENT ERROR:", e);
-    Alert.alert("Error", e?.message ?? "Cannot edit comment");
-  }
-};
-const addComment = async () => {
-  try {
-    if (!selectedBlog) return;
-    if (!commentText.trim()) throw new Error("Comment cannot be empty");
+  };
 
-    const token = await getToken();
-
-    if (!token) {
-      Alert.alert("Login required", "Please log in first.");
-      return;
-    }
-
-    const blogId = selectedBlog.id;
-    const text = commentText.trim();
-    const localId = makeLocalId();
-    const localCommentId = makeLocalCommentId();
-    const createdAt = new Date().toISOString();
-
-    const localComment: CommentDTO = {
-      id: localCommentId,
-      username: "You",
-      content: text,
-      createdAt,
-    };
-
-    setCommentText("");
-
-    let updatedComments: CommentDTO[] = [];
-
-    setComments((prev) => {
-      updatedComments = [...prev, localComment];
-      saveCachedComments(blogId, updatedComments);
-      return updatedComments;
-    });
-
-    setBlogs((prev) => {
-      const updated = prev.map((b) =>
-        b.id === blogId
-          ? { ...b, commentsCount: (b.commentsCount ?? 0) + 1 }
-          : b
-      );
-
-      saveCachedBlogs(updated);
-      return updated;
-    });
-
+  const addComment = async () => {
     try {
-      await apiRequest(
-        `/blog/comment/${blogId}?content=${encodeURIComponent(
-          text
-        )}&createdAt=${encodeURIComponent(createdAt)}`,
-        { method: "POST" }
-      );
+      if (!selectedBlog) return;
+      if (!commentText.trim()) throw new Error("Comment cannot be empty");
 
-      const data = await apiRequest(`/blog/comments/${blogId}`, {
-        method: "GET",
-      });
+      const token = await getToken();
+      if (!token) {
+        Alert.alert("Login required", "Please log in first.");
+        return;
+      }
 
-      const freshComments = data ?? [];
-      setComments(freshComments);
-      await saveCachedComments(blogId, freshComments);
-    } catch (e) {
-      console.log("COMMENT SAVED OFFLINE:", e);
+      const blogId = selectedBlog.id;
+      const text = commentText.trim();
+      const localId = makeLocalId();
+      const localCommentId = makeLocalCommentId();
+      const createdAt = new Date().toISOString();
 
-      await queueOfflineCommentAction({
-        localId,
-        type: "CREATE",
-        blogId,
-        commentId: localCommentId,
+      // FIX: use real username instead of hardcoded "You"
+      const localComment: CommentDTO = {
+        id: localCommentId,
+        username: myUsername,
         content: text,
         createdAt,
+      };
+
+      setCommentText("");
+
+      setComments((prev) => {
+        const updated = [...prev, localComment];
+        saveCachedComments(blogId, updated);
+        return updated;
       });
-    }
-  } catch (e: any) {
-    console.log("ADD COMMENT ERROR:", e);
-    Alert.alert("Error", e?.message ?? "Cannot add comment");
-  }
-};
 
-const deleteComment = async (id: number) => {
-  try {
-    if (!selectedBlog) return;
+      setBlogs((prev) => {
+        const updated = prev.map((b) =>
+          b.id === blogId ? { ...b, commentsCount: (b.commentsCount ?? 0) + 1 } : b
+        );
+        saveCachedBlogs(updated);
+        return updated;
+      });
 
-    const blogId = selectedBlog.id;
+      try {
+        await apiRequest(
+          `/blog/comment/${blogId}?content=${encodeURIComponent(
+            text
+          )}&createdAt=${encodeURIComponent(createdAt)}`,
+          { method: "POST" }
+        );
 
-    setComments((prev) => {
-      const updated = prev.filter((c) => c.id !== id);
-      saveCachedComments(blogId, updated);
-      return updated;
-    });
-
-    setBlogs((prev) => {
-      const updated = prev.map((b) =>
-        b.id === blogId
-          ? {
-              ...b,
-              commentsCount: Math.max((b.commentsCount ?? 1) - 1, 0),
-            }
-          : b
-      );
-
-      saveCachedBlogs(updated);
-      return updated;
-    });
-
-    try {
-      if (id < 0) {
-        throw new Error("Local offline comment");
+        const data = await apiRequest(`/blog/comments/${blogId}`, { method: "GET" });
+        const freshComments = data ?? [];
+        setComments(freshComments);
+        await saveCachedComments(blogId, freshComments);
+      } catch (e) {
+        // FIX: only queue on real network error
+        if (isNetworkError(e)) {
+          await queueOfflineCommentAction({
+            localId,
+            type: "CREATE",
+            blogId,
+            commentId: localCommentId,
+            content: text,
+            createdAt,
+          });
+        } else {
+          // Server error — rollback
+          console.log("ADD COMMENT SERVER ERROR:", (e as Error).message);
+          setComments((prev) => prev.filter((c) => c.id !== localCommentId));
+          setBlogs((prev) =>
+            prev.map((b) =>
+              b.id === blogId
+                ? { ...b, commentsCount: Math.max((b.commentsCount ?? 1) - 1, 0) }
+                : b
+            )
+          );
+          Alert.alert("Error", "Could not send comment");
+        }
       }
-
-      await apiRequest(`/blog/comments/${id}`, {
-        method: "DELETE",
-      });
-
-      const data = await apiRequest(`/blog/comments/${blogId}`, {
-        method: "GET",
-      });
-
-      const freshComments = data ?? [];
-      setComments(freshComments);
-      await saveCachedComments(blogId, freshComments);
-    } catch (e) {
-      console.log("DELETE COMMENT SAVED OFFLINE:", e);
-
-      await queueOfflineCommentAction({
-        localId: makeLocalId(),
-        type: "DELETE",
-        blogId,
-        commentId: id,
-        createdAt: new Date().toISOString(),
-      });
+    } catch (e: any) {
+      console.log("ADD COMMENT ERROR:", e);
+      Alert.alert("Error", e?.message ?? "Cannot add comment");
     }
-  } catch (e: any) {
-    console.log("DELETE COMMENT ERROR:", e);
-    Alert.alert("Error", e?.message ?? "Cannot delete comment");
-  }
-};
+  };
+
+  const deleteComment = async (id: number) => {
+    try {
+      if (!selectedBlog) return;
+
+      const blogId = selectedBlog.id;
+
+      setComments((prev) => {
+        const updated = prev.filter((c) => c.id !== id);
+        saveCachedComments(blogId, updated);
+        return updated;
+      });
+
+      setBlogs((prev) => {
+        const updated = prev.map((b) =>
+          b.id === blogId
+            ? { ...b, commentsCount: Math.max((b.commentsCount ?? 1) - 1, 0) }
+            : b
+        );
+        saveCachedBlogs(updated);
+        return updated;
+      });
+
+      try {
+        if (id < 0) throw new Error("Local offline comment");
+
+        await apiRequest(`/blog/comments/${id}`, { method: "DELETE" });
+
+        const data = await apiRequest(`/blog/comments/${blogId}`, { method: "GET" });
+        const freshComments = data ?? [];
+        setComments(freshComments);
+        await saveCachedComments(blogId, freshComments);
+      } catch (e) {
+        // FIX: only queue on real network error or local comment
+        if (isNetworkError(e) || id < 0) {
+          await queueOfflineCommentAction({
+            localId: makeLocalId(),
+            type: "DELETE",
+            blogId,
+            commentId: id,
+            createdAt: new Date().toISOString(),
+          });
+        } else {
+          console.log("DELETE COMMENT SERVER ERROR:", (e as Error).message);
+          Alert.alert("Error", "Could not delete comment");
+        }
+      }
+    } catch (e: any) {
+      console.log("DELETE COMMENT ERROR:", e);
+      Alert.alert("Error", e?.message ?? "Cannot delete comment");
+    }
+  };
+
   return (
     <ThemedView style={styles.container}>
       <View style={styles.header}>
@@ -1782,5 +1496,4 @@ function makeStyles(
       fontWeight: "900",
       color: theme.card,
     },
-  });
-}
+  }); }

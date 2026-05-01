@@ -37,6 +37,7 @@ import {
   logThemeChanged,
 } from "@/services/firebase";
 import { saveSettings } from "@/services/settingsService";
+import * as Localization from 'expo-localization';
 
 type UserDTO = {
   username: string;
@@ -140,18 +141,27 @@ export default function SettingsScreen() {
           setStudyReminderEnabled(data.studyReminderEnabled);
         }
 
-        if (
-          data.studyReminderHour !== null &&
-          data.studyReminderHour !== undefined
-        ) {
-          setStudyHour(String(data.studyReminderHour));
-        }
+        if (data.studyReminderHour !== null && data.studyReminderHour !== undefined) {
+            const timezone = Localization.getCalendars()[0].timeZone ?? "UTC";
+            const utcDate = new Date();
+            utcDate.setUTCHours(data.studyReminderHour, data.studyReminderMinute ?? 0, 0, 0);
 
-        if (
-          data.studyReminderMinute !== null &&
-          data.studyReminderMinute !== undefined
-        ) {
-          setStudyMinute(String(data.studyReminderMinute));
+            const localHour = parseInt(
+                new Intl.DateTimeFormat("en-US", {
+                    timeZone: timezone,
+                    hour: "numeric",
+                    hour12: false,
+                }).format(utcDate)
+            );
+            const localMinute = parseInt(
+                new Intl.DateTimeFormat("en-US", {
+                    timeZone: timezone,
+                    minute: "2-digit",
+                }).format(utcDate)
+            );
+
+            setStudyHour(String(localHour === 24 ? 0 : localHour));
+            setStudyMinute(String(localMinute).padStart(2, "0"));
         }
       }
     } catch (e) {
@@ -390,67 +400,86 @@ export default function SettingsScreen() {
     setStudyReminderEnabled(value);
   }
 
-  async function handleSaveStudyReminder() {
+ async function handleSaveStudyReminder() {
     const hour = Number(studyHour);
     const minute = Number(studyMinute);
 
     if (studyReminderEnabled) {
-      if (studyHour.trim() === "" || studyMinute.trim() === "") {
-        Alert.alert("Validation", "Please enter study hour and minute");
-        return;
-      }
-
-      if (Number.isNaN(hour) || hour < 0 || hour > 23) {
-        Alert.alert("Validation", "Hour must be between 0 and 23");
-        return;
-      }
-
-      if (Number.isNaN(minute) || minute < 0 || minute > 59) {
-        Alert.alert("Validation", "Minute must be between 0 and 59");
-        return;
-      }
+        if (studyHour.trim() === "" || studyMinute.trim() === "") {
+            Alert.alert("Validation", "Please enter study hour and minute");
+            return;
+        }
+        if (Number.isNaN(hour) || hour < 0 || hour > 23) {
+            Alert.alert("Validation", "Hour must be between 0 and 23");
+            return;
+        }
+        if (Number.isNaN(minute) || minute < 0 || minute > 59) {
+            Alert.alert("Validation", "Minute must be between 0 and 59");
+            return;
+        }
     }
 
     setSavingStudyReminder(true);
 
     try {
-      const token = await getToken();
-      if (!token) return;
+        const token = await getToken();
+        if (!token) return;
 
-      const body = studyReminderEnabled
-        ? {
-            studyReminderEnabled: true,
-            studyReminderHour: hour,
-            studyReminderMinute: minute,
-          }
-        : {
-            studyReminderEnabled: false,
-          };
+        let utcHour = hour;
+        let utcMinute = minute;
 
-      const res = await fetch(`${API_BASE_URL}/user/settings`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
+        if (studyReminderEnabled) {
+            // конвертуємо локальний час юзера в UTC
+            const timezone = Localization.getCalendars()[0].timeZone ?? "UTC";
+            const now = new Date();
+            const localDateStr =
+                new Intl.DateTimeFormat("en-CA", {
+                    timeZone: timezone,
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                }).format(now) +
+                `T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`;
 
-      const json = await res.json();
+            const localDate = new Date(localDateStr);
+            utcHour = localDate.getUTCHours();
+            utcMinute = localDate.getUTCMinutes();
+        }
 
-      if (!json.success) {
-        Alert.alert("Error", json.message ?? "Failed to save study reminder");
-        return;
-      }
+        const body = studyReminderEnabled
+            ? {
+                studyReminderEnabled: true,
+                studyReminderHour: utcHour,
+                studyReminderMinute: utcMinute,
+              }
+            : {
+                studyReminderEnabled: false,
+              };
 
-      Alert.alert("Saved", "Study reminder updated");
-      await loadSettings();
+        const res = await fetch(`${API_BASE_URL}/user/settings`, {
+            method: "PUT",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+        });
+
+        const json = await res.json();
+
+        if (!json.success) {
+            Alert.alert("Error", json.message ?? "Failed to save study reminder");
+            return;
+        }
+
+        Alert.alert("Saved", "Study reminder updated");
+        await loadSettings();
     } catch (e: any) {
-      Alert.alert("Error", e?.message ?? "Failed to save study reminder");
+        Alert.alert("Error", e?.message ?? "Failed to save study reminder");
     } finally {
-      setSavingStudyReminder(false);
+        setSavingStudyReminder(false);
     }
-  }
+}
 
   const s = makeStyles(theme, fs);
 
