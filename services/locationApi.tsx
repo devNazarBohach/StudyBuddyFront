@@ -9,6 +9,9 @@ export type UserLocationDTO = {
   updatedAt?: string;
   distanceKm?: number;
   role?: string;
+  school?: string;
+  faculty?: string;
+  subjects?: string[];
 };
 
 type ApiResponse<T> = {

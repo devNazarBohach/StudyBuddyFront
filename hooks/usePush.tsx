@@ -76,6 +76,18 @@ function handleNotificationPayload(data: any) {
   }
 }
 
+export async function registerAndSavePushToken(): Promise<void> {
+  try {
+    const jwt = await getToken();
+    if (!jwt) return;
+    const expoToken = await registerForPushToken();
+    if (!expoToken) return;
+    await pushApi.savePushToken(expoToken);
+  } catch (e) {
+    console.log("[push] registerAndSavePushToken error", e);
+  }
+}
+
 export function usePushNotifications() {
   const responseSub = useRef<Notifications.EventSubscription | null>(null);
   const savedExpoTokenRef = useRef<string | null>(null);

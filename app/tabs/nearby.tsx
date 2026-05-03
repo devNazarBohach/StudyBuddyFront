@@ -12,7 +12,6 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Linking,
   Pressable,
@@ -44,58 +43,167 @@ function formatUpdated(iso?: string) {
   return `${d} d ago`;
 }
 
+function ProfileCard({ item, theme, fs }: { item: UserLocationDTO; theme: any; fs: (n: number) => number }) {
+  const hasProfile = !!(item.school || item.faculty || (item.subjects && item.subjects.length > 0));
+  const roleValue = item.role?.toUpperCase() ?? "";
+
+  return (
+    <Pressable
+      style={[s.card, { backgroundColor: theme.card, borderColor: theme.border }]}
+      onPress={() => {
+        logNearbyUserTapped(item.username);
+        router.push({
+          pathname: "/screens/friends/chats/CreateRoom" as any,
+          params: { username: item.username },
+        });
+      }}
+    >
+      {/* Avatar row — same as modalAvatarRow in settings */}
+      <View style={s.avatarRow}>
+        <UserAvatar username={item.username} size={72} />
+        <View style={{ flex: 1 }}>
+          <ThemedText style={[s.name, { color: theme.text, fontSize: fs(20) }]}>
+            {item.username}
+          </ThemedText>
+          <ThemedText style={[s.updatedAt, { color: theme.secondaryText, fontSize: fs(13) }]}>
+            {formatUpdated(item.updatedAt)}
+          </ThemedText>
+        </View>
+        {/* Distance badge */}
+        <View style={[s.distanceBadge, { backgroundColor: theme.primary + "22" }]}>
+          <Ionicons name="location" size={13} color={theme.primary} />
+          <ThemedText style={[s.distanceText, { color: theme.primary, fontSize: fs(13) }]}>
+            {formatDistance(item.distanceKm)}
+          </ThemedText>
+        </View>
+      </View>
+
+      {/* Role pill — same as roleRow in settings */}
+      {roleValue ? (
+        <>
+          <ThemedText style={[s.fieldLabel, { color: theme.secondaryText, fontSize: fs(13) }]}>
+            Role
+          </ThemedText>
+          <View style={[s.roleRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            {(["STUDENT", "TEACHER"] as const).map((r) => (
+              <View
+                key={r}
+                style={[
+                  s.roleBtn,
+                  roleValue === r && { backgroundColor: theme.primary },
+                  roleValue !== r && { opacity: 0.4 },
+                ]}
+              >
+                <ThemedText
+                  style={{
+                    fontWeight: "700",
+                    fontSize: fs(13),
+                    color: roleValue === r ? theme.onPrimary : theme.secondaryText,
+                  }}
+                >
+                  {r}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
+
+      {/* Profile fields — same style as non-editable inputs in settings */}
+      {hasProfile && (
+        <>
+          {item.school ? (
+            <>
+              <ThemedText style={[s.fieldLabel, { color: theme.secondaryText, fontSize: fs(13) }]}>
+                University
+              </ThemedText>
+              <View style={[s.inputBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <ThemedText style={[s.inputText, { color: theme.text, fontSize: fs(15) }]}>
+                  {item.school}
+                </ThemedText>
+              </View>
+            </>
+          ) : null}
+
+          {item.faculty ? (
+            <>
+              <ThemedText style={[s.fieldLabel, { color: theme.secondaryText, fontSize: fs(13) }]}>
+                Faculty
+              </ThemedText>
+              <View style={[s.inputBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <ThemedText style={[s.inputText, { color: theme.text, fontSize: fs(15) }]}>
+                  {item.faculty}
+                </ThemedText>
+              </View>
+            </>
+          ) : null}
+
+          {item.subjects && item.subjects.length > 0 ? (
+            <>
+              <ThemedText style={[s.fieldLabel, { color: theme.secondaryText, fontSize: fs(13) }]}>
+                Subjects
+              </ThemedText>
+              <View style={[s.inputBox, s.inputMulti, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <ThemedText style={[s.inputText, { color: theme.text, fontSize: fs(15) }]}>
+                  {item.subjects.map((sub) => sub.toLowerCase().replace(/_/g, " ")).join(", ")}
+                </ThemedText>
+              </View>
+            </>
+          ) : null}
+        </>
+      )}
+
+      {/* Message button */}
+      <View style={[s.messageBtn, { backgroundColor: theme.primary }]}>
+        <Ionicons name="chatbubble-outline" size={15} color={theme.onPrimary} />
+        <ThemedText style={[s.messageBtnText, { color: theme.onPrimary, fontSize: fs(14) }]}>
+          Message
+        </ThemedText>
+      </View>
+    </Pressable>
+  );
+}
+
 export default function NearbyScreen() {
   const { theme, fs } = useTheme();
   useScreenTracking("NearbyScreen");
-  const styles = makeStyles(theme, fs);
   const [permission, setPermission] = useState<PermissionState>("idle");
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [users, setUsers] = useState<UserLocationDTO[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const isLocationOff = error?.toLowerCase().includes("share location") ||
-                      error?.toLowerCase().includes("disabled");
+  const isLocationOff =
+    error?.toLowerCase().includes("share location") ||
+    error?.toLowerCase().includes("disabled");
 
   const requestAndUpdate = useCallback(async (): Promise<boolean> => {
     setPermission("checking");
-
     const existing = await Location.getForegroundPermissionsAsync();
     let status = existing.status;
     let canAskAgain = existing.canAskAgain;
-
     if (status !== "granted") {
       const req = await Location.requestForegroundPermissionsAsync();
       status = req.status;
       canAskAgain = req.canAskAgain;
     }
-
     if (status !== "granted") {
       setPermission(canAskAgain ? "denied" : "blocked");
       return false;
     }
-
     setPermission("granted");
-
     try {
       const servicesEnabled = await Location.hasServicesEnabledAsync();
       if (!servicesEnabled) {
         setError("Location services are disabled on this device.");
         return false;
       }
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      await locationApi.updateMyLocation(
-        pos.coords.latitude,
-        pos.coords.longitude
-      );
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      await locationApi.updateMyLocation(pos.coords.latitude, pos.coords.longitude);
       return true;
     } catch (e: any) {
       const msg = e?.message ?? "Failed to update location";
       if (msg.toLowerCase().includes("share location disabled")) {
-        setError(
-          "Location sharing is turned off in Settings. Enable it to see nearby students."
-        );
+        setError("Location sharing is turned off in Settings. Enable it to see nearby students.");
       } else {
         setError(msg);
       }
@@ -112,9 +220,7 @@ export default function NearbyScreen() {
     } catch (e: any) {
       const msg = e?.message ?? "Failed to load nearby users";
       if (msg.toLowerCase().includes("share location disabled")) {
-        setError(
-          "Location sharing is turned off in Settings. Enable it to see nearby students."
-        );
+        setError("Location sharing is turned off in Settings. Enable it to see nearby students.");
       } else if (msg.toLowerCase().includes("not set")) {
         setError("Your location is not set yet. Pull to refresh.");
       } else {
@@ -128,15 +234,11 @@ export default function NearbyScreen() {
     setLoading(true);
     setError(null);
     const ok = await requestAndUpdate();
-    if (ok) {
-      await loadNearby();
-    }
+    if (ok) await loadNearby();
     setLoading(false);
   }, [requestAndUpdate, loadNearby]);
 
-  useEffect(() => {
-    bootstrap();
-  }, [bootstrap]);
+  useEffect(() => { bootstrap(); }, [bootstrap]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -147,21 +249,15 @@ export default function NearbyScreen() {
 
   if (permission === "blocked") {
     return (
-      <SafeAreaView style={styles.safe}>
-        <ThemedView style={styles.center}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <ThemedView style={s.center}>
           <Ionicons name="location-outline" size={56} color="#888" />
-          <ThemedText type="title" style={styles.heading}>
-            Location is blocked
+          <ThemedText type="title" style={s.heading}>Location is blocked</ThemedText>
+          <ThemedText style={[s.muted, { color: theme.secondaryText }]}>
+            Enable location access in your device Settings to find study partners nearby.
           </ThemedText>
-          <ThemedText style={styles.muted}>
-            Enable location access in your device Settings to find study
-            partners nearby.
-          </ThemedText>
-          <Pressable
-            style={styles.primaryBtn}
-            onPress={() => Linking.openSettings()}
-          >
-            <ThemedText style={styles.primaryBtnText}>Open Settings</ThemedText>
+          <Pressable style={[s.primaryBtn, { backgroundColor: theme.primary }]} onPress={() => Linking.openSettings()}>
+            <ThemedText style={[s.primaryBtnText, { color: theme.onPrimary }]}>Open Settings</ThemedText>
           </Pressable>
         </ThemedView>
         <BottomNav />
@@ -171,17 +267,15 @@ export default function NearbyScreen() {
 
   if (permission === "denied") {
     return (
-      <SafeAreaView style={styles.safe}>
-        <ThemedView style={styles.center}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <ThemedView style={s.center}>
           <Ionicons name="location-outline" size={56} color="#888" />
-          <ThemedText type="title" style={styles.heading}>
-            Allow location access
-          </ThemedText>
-          <ThemedText style={styles.muted}>
+          <ThemedText type="title" style={s.heading}>Allow location access</ThemedText>
+          <ThemedText style={[s.muted, { color: theme.secondaryText }]}>
             We need your location to show other students studying near you.
           </ThemedText>
-          <Pressable style={styles.primaryBtn} onPress={bootstrap}>
-            <ThemedText style={styles.primaryBtnText}>Allow</ThemedText>
+          <Pressable style={[s.primaryBtn, { backgroundColor: theme.primary }]} onPress={bootstrap}>
+            <ThemedText style={[s.primaryBtnText, { color: theme.onPrimary }]}>Allow</ThemedText>
           </Pressable>
         </ThemedView>
         <BottomNav />
@@ -190,95 +284,56 @@ export default function NearbyScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <ThemedView style={styles.container}>
-        <View style={styles.header}>
-          <ThemedText type="title" style={styles.title}>
-            Nearby
-          </ThemedText>
-          <ThemedText style={styles.muted}>
+    <SafeAreaView style={{ flex: 1 }}>
+      <ThemedView style={s.container}>
+        <View style={s.header}>
+          <ThemedText type="title" style={[s.title, { fontSize: fs(28) }]}>Nearby</ThemedText>
+          <ThemedText style={[s.muted, { color: theme.secondaryText, textAlign: "left" }]}>
             Students sharing their location
           </ThemedText>
         </View>
 
         {loading && users.length === 0 ? (
-          <View style={styles.center}>
+          <View style={s.center}>
             <ActivityIndicator size="large" />
-            <ThemedText style={styles.muted}>Finding students…</ThemedText>
+            <ThemedText style={[s.muted, { color: theme.secondaryText }]}>Finding students…</ThemedText>
           </View>
         ) : (
           <FlatList
             data={users}
             keyExtractor={(item) => String(item.userId)}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-           ListEmptyComponent={
-              <View style={styles.center}>
+            contentContainerStyle={{ paddingBottom: 110, paddingTop: 4 }}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+            ListEmptyComponent={
+              <View style={s.center}>
                 {isLocationOff ? (
                   <>
                     <Ionicons name="location-outline" size={48} color={theme.secondaryText} />
-                    <ThemedText style={[styles.muted, { marginTop: 12, fontWeight: "600" }]}>
+                    <ThemedText style={[s.muted, { color: theme.secondaryText, fontWeight: "600", marginTop: 12 }]}>
                       Location sharing is OFF
                     </ThemedText>
-                    <ThemedText style={[styles.muted, { marginTop: 4 }]}>
+                    <ThemedText style={[s.muted, { color: theme.secondaryText, marginTop: 4 }]}>
                       Enable "Share location" in Settings to see nearby students and be visible to them.
                     </ThemedText>
                     <Pressable
-                      style={[styles.primaryBtn, { marginTop: 20 }]}
+                      style={[s.primaryBtn, { backgroundColor: theme.primary, marginTop: 20 }]}
                       onPress={() => router.push("/tabs/settings")}
                     >
-                      <ThemedText style={styles.primaryBtnText}>Go to Settings</ThemedText>
+                      <ThemedText style={[s.primaryBtnText, { color: theme.onPrimary }]}>Go to Settings</ThemedText>
                     </Pressable>
                   </>
                 ) : (
                   <>
                     <Ionicons name="people-outline" size={48} color={theme.secondaryText} />
-                    <ThemedText style={[styles.muted, { marginTop: 8 }]}>
+                    <ThemedText style={[s.muted, { color: theme.secondaryText, marginTop: 8 }]}>
                       {error ?? "No students around yet. Pull to refresh."}
                     </ThemedText>
                   </>
                 )}
               </View>
             }
-            renderItem={({ item }) => (
-              <Pressable
-                style={styles.row}
-                onPress={() => {
-                  // open direct chat — relies on an existing route that
-                  // resolves a direct room by username.
-                  logNearbyUserTapped(item.username);
-                  Alert.alert(item.username, `Distance: ${formatDistance(item.distanceKm)}`, [
-                    { text: "Close", style: "cancel" },
-                    {
-                      text: "Message",
-                      onPress: () =>
-                        router.push({
-                          pathname: "/screens/friends/chats/CreateRoom" as any,
-                          params: { username: item.username },
-                        }),
-                    },
-                  ]);
-                }}
-              >
-                <UserAvatar username={item.username} size={44} />
-                <View style={styles.rowMain}>
-                  <ThemedText style={styles.rowTitle}>
-                    @{item.username}
-                  </ThemedText>
-                  <ThemedText style={styles.rowSub}>
-                    {formatUpdated(item.updatedAt)}
-                    {item.role ? ` · ${item.role.toLowerCase()}` : ""}
-                  </ThemedText>
-                </View>
-                <View style={styles.distance}>
-                  <Ionicons name="location" size={14} color={theme.primary} />
-                  <ThemedText style={styles.distanceText}>
-                    {formatDistance(item.distanceKm)}
-                  </ThemedText>
-                </View>
-              </Pressable>
-            )}
+            renderItem={({ item }) => <ProfileCard item={item} theme={theme} fs={fs} />}
           />
         )}
       </ThemedView>
@@ -287,57 +342,96 @@ export default function NearbyScreen() {
   );
 }
 
-function makeStyles(theme: import('@/constants/theme').AppTheme, fs: (n: number) => number) { return StyleSheet.create({
-  safe: { flex: 1 },
+const s = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16 },
-  header: { paddingVertical: 16 },
-  title: { fontSize: fs(28), fontWeight: "700" },
-  muted: { color: theme.secondaryText, textAlign: "center", marginTop: 8 },
+  header: { paddingTop: 16, paddingBottom: 8 },
+  title: { fontWeight: "700" },
+  muted: { textAlign: "center", marginTop: 8 },
   heading: { marginTop: 12, textAlign: "center" },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 48,
+  center: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24, paddingVertical: 48 },
+  primaryBtn: { marginTop: 24, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 10 },
+  primaryBtnText: { fontWeight: "600" },
+
+  // Card — same shape as modalSheet in settings
+  card: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  primaryBtn: {
-    marginTop: 24,
-    backgroundColor: theme.primary,
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  primaryBtnText: { color: theme.onPrimary, fontWeight: "600", fontSize: fs(16) },
-  row: {
+
+  // Same as modalAvatarRow
+  avatarRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.border,
+    gap: 16,
+    marginBottom: 20,
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  avatarText: { color: theme.onPrimary, fontWeight: "700", fontSize: fs(18) },
-  rowMain: { flex: 1 },
-  rowTitle: { fontSize: fs(16), fontWeight: "600" },
-  rowSub: { fontSize: fs(12), color: theme.secondaryText, marginTop: 2 },
-  distance: {
+  name: { fontWeight: "700" },
+  updatedAt: { marginTop: 2 },
+
+  distanceBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: theme.primary + "26",
   },
-  distanceText: { fontSize: fs(13), fontWeight: "600", color: theme.primary },
-}); }
+  distanceText: { fontWeight: "600" },
+
+  // Same as fieldLabel in settings
+  fieldLabel: {
+    fontWeight: "600",
+    marginBottom: 6,
+    marginTop: 4,
+  },
+
+  // Same as roleRow / roleBtn in settings
+  roleRow: {
+    flexDirection: "row",
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 4,
+    marginBottom: 16,
+  },
+  roleBtn: {
+    flex: 1,
+    height: 40,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Same visual as non-editable input in settings
+  inputBox: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+    justifyContent: "center",
+  },
+  inputMulti: {
+    minHeight: 72,
+    justifyContent: "flex-start",
+  },
+  inputText: { lineHeight: 20 },
+
+  // Message button at bottom of card
+  messageBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    height: 44,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  messageBtnText: { fontWeight: "700" },
+});

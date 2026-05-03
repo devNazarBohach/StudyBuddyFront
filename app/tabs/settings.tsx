@@ -21,7 +21,7 @@ import { ThemedText } from "@/components/themed-text";
 import { UserAvatar, invalidateAvatarCache } from "@/components/UserAvatar";
 import { API_BASE_URL } from "@/constants/api";
 import { AppTheme } from "@/constants/theme";
-import { getToken } from "@/constants/tokens";
+import { clearToken, getToken } from "@/constants/tokens";
 import {
   FONT_SCALE_LABELS,
   FONT_SCALE_STEPS,
@@ -36,6 +36,7 @@ import {
   logProfileUpdated,
   logThemeChanged,
 } from "@/services/firebase";
+import { pushApi } from "@/services/pushApi";
 import { saveSettings } from "@/services/settingsService";
 import * as Localization from 'expo-localization';
 
@@ -854,6 +855,8 @@ export default function SettingsScreen() {
             style={[s.actionButton, s.logoutButton, { borderColor: theme.danger }]}
             onPress={async () => {
               await logLogout();
+              try { await pushApi.clearPushToken(); } catch {}
+              await clearToken();
               router.replace("/auth/login");
             }}
           >

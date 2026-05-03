@@ -16,6 +16,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { getToken, saveToken } from "@/constants/tokens";
 import { useTheme } from "@/context/ThemeContext";
+import { registerAndSavePushToken } from "@/hooks/usePush";
 import { useScreenTracking } from "@/hooks/useScreenTracking";
 import { authApi } from "@/services";
 import {
@@ -93,6 +94,9 @@ export default function LoginScreen() {
     await saveToken(res.token);
     setMyUsername(res.user.username);
     setAdminMode(false);
+
+    // Одразу реєструємо push-токен після SSO (не чекаємо 15-секундний інтервал)
+    registerAndSavePushToken().catch(() => {});
 
     // Auto-upload Google profile photo if available
     if (photoUrl) {
@@ -214,7 +218,7 @@ async function uploadGooglePhoto(token: string, photoUrl: string) {
         )}
       </Pressable>
 
-      <Pressable onPress={() => router.back()} style={styles.linkBtn}>
+      <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace("/")} style={styles.linkBtn}>
         <ThemedText type="link">Back</ThemedText>
       </Pressable>
     </ThemedView>
