@@ -94,17 +94,25 @@ export default function MembersScreen() {
 
   async function castOutMember(username: string) {
     try {
-      const token = await getToken();
-      if (!token) return;
+      if (!room || Number.isNaN(room)) {
+        Alert.alert("Error", "Invalid room");
+        return;
+      }
 
-      const response = await fetch(`${API_BASE_URL}/room/kick-member`, {
-        method: "POST",
+      const token = await getToken();
+      if (!token) {
+        Alert.alert("Error", "You are not authorized");
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/room/delete-member`, {
+        method: "DELETE",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          roomId: String(room),
+          room_id: String(room),
           username: username,
         }),
       });
@@ -119,7 +127,7 @@ export default function MembersScreen() {
       setMembers((prev) => prev.filter((m) => m.username !== username));
       Alert.alert("Success", `${username} was removed`);
     } catch (e) {
-      console.log("KICK MEMBER ERROR", e);
+      console.log("DELETE MEMBER ERROR", e);
       Alert.alert("Error", "Failed to remove member");
     }
   }
