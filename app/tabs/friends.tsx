@@ -40,10 +40,11 @@ async function createDirectRoom(username: string) {
   return data.data;
 }
 
+
 export default function FriendsScreen() {
   useScreenTracking("FriendsScreen");
 
-  const { friends, removeFriend, refreshAll, adminMode } = useAppState();
+  const { friends, refreshAll, adminMode } = useAppState();
   const [loadingUsername, setLoadingUsername] = useState<string | null>(null);
   const { theme } = useTheme();
 
@@ -52,6 +53,36 @@ export default function FriendsScreen() {
       refreshAll().catch((e) => console.log("AUTO REFRESH ERROR", e));
     }, [refreshAll])
   );
+
+  async function removeFriend(username: string) {
+  const token = await getToken();
+
+  if (!token) {
+    Alert.alert("Error", "You are not authorized");
+    return;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/user/friends/remove`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      friend_username: username,
+    }),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    Alert.alert("Error", result?.message || "Failed to remove friend");
+    return;
+  }
+
+  await refreshAll();
+  Alert.alert("Success", "Friend removed");
+}
 
   const openDirectChat = async (username: string) => {
     try {
@@ -212,10 +243,7 @@ export default function FriendsScreen() {
                   {
                     text: "Remove",
                     style: "destructive",
-                    onPress: () =>
-                      removeFriend(f.username).catch((e) =>
-                        Alert.alert("Error", e.message)
-                      ),
+                    onPress: () => removeFriend(f.username)
                   },
                 ])
               }

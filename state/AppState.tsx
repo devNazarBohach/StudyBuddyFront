@@ -29,7 +29,6 @@ type AppState = {
   sendFriendRequest: (addresseeUsername: string) => Promise<void>;
   acceptFriendRequest: (requestId: string) => Promise<void>;
   declineFriendRequest: (requestId: string) => Promise<void>;
-  removeFriend: (friendUsername: string) => Promise<void>;
 };
 
 const Ctx = createContext<AppState | null>(null);
@@ -141,17 +140,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       throw new Error("declineFriendRequest: backend endpoint not implemented yet");
     }
 
-    async function removeFriend(friendUsername: string) {
-      const u = cleanUsername(friendUsername);
-      if (!u) return;
 
-      if (adminMode) {
-        setFriends((prev) => prev.filter((f) => f.username !== u));
-        return;
-      }
-
-      throw new Error("removeFriend: backend endpoint not implemented yet");
-    }
 
     return {
       adminMode,
@@ -165,7 +154,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       sendFriendRequest,
       acceptFriendRequest,
       declineFriendRequest,
-      removeFriend,
     };
   }, [adminMode, myUsername, friends, incomingRequests, outgoingRequests]);
 
