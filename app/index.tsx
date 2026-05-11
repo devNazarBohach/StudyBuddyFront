@@ -9,7 +9,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { useScreenTracking } from "@/hooks/useScreenTracking";
 
 export default function HomeAuthChoiceScreen() {
-  useScreenTracking("HomeAuthChoiceScreen");
+  useScreenTracking("HomeAuthChoiceScreen ");
   const { theme } = useTheme();
 
   useEffect(() => {

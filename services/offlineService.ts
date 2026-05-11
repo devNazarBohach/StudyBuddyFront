@@ -226,6 +226,7 @@ export async function queueOfflineCommentAction(action: OfflineCommentAction) {
 
 /**
  * FIX: Server errors drop the action, network errors keep it.
+ * Empty/non-JSON ok responses are treated as success (not errors).
  */
 export async function syncOfflineComments(
   apiRequest: (path: string, options?: RequestInit) => Promise<any>
@@ -250,6 +251,11 @@ export async function syncOfflineComments(
         );
       } else if (action.type === "UPDATE") {
         if (!action.commentId || !action.content?.trim()) continue;
+        // Local (negative) comment IDs can't be updated on server — skip
+        if (action.commentId < 0) {
+          console.log("COMMENT SYNC SKIPPED (local ID UPDATE — was merged into CREATE):", action.commentId);
+          continue;
+        }
         await apiRequest(
           `/blog/comments/${action.commentId}?content=${encodeURIComponent(
             action.content.trim()
@@ -258,6 +264,11 @@ export async function syncOfflineComments(
         );
       } else if (action.type === "DELETE") {
         if (!action.commentId) continue;
+        // Local (negative) comment IDs were never on server — skip
+        if (action.commentId < 0) {
+          console.log("COMMENT SYNC SKIPPED (local ID DELETE — CREATE was already removed):", action.commentId);
+          continue;
+        }
         await apiRequest(`/blog/comments/${action.commentId}`, { method: "DELETE" });
       }
 

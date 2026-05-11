@@ -65,6 +65,8 @@ export default function SettingsScreen() {
     setHighContrast,
     fontScale,
     setFontScale,
+    hasThemeOverride,
+    resetToSystemTheme,
     fs,
   } = useTheme();
 
@@ -560,6 +562,21 @@ export default function SettingsScreen() {
               theme={theme}
               fs={fs}
             />
+
+            {hasThemeOverride && (
+              <>
+                <View style={[s.divider, { backgroundColor: theme.border }]} />
+                <TouchableOpacity
+                  style={s.systemThemeBtn}
+                  onPress={resetToSystemTheme}
+                >
+                  <Ionicons name="phone-portrait-outline" size={16} color={theme.primary} />
+                  <ThemedText style={[s.systemThemeBtnText, { color: theme.primary }]}>
+                    Use system theme
+                  </ThemedText>
+                </TouchableOpacity>
+              </>
+            )}
 
             <View style={[s.divider, { backgroundColor: theme.border }]} />
 
@@ -1282,6 +1299,18 @@ function makeStyles(theme: AppTheme, fs: (n: number) => number) {
     divider: {
       height: 1,
       marginHorizontal: 12,
+    },
+
+    systemThemeBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    systemThemeBtnText: {
+      fontSize: 14,
+      fontWeight: "500",
     },
 
     studyHeader: {

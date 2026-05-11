@@ -7,11 +7,16 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { Appearance, useColorScheme } from "react-native";
 
 import { AppTheme, getTheme } from "@/constants/theme";
-import { fetchSettings, saveSettings } from "@/services/settingsService";
+import { saveSettings } from "@/services/settingsService";
 
+// darkMode value (true/false)
 const STORAGE_KEY_DARK = "@studybuddy:darkMode";
+// Set ONLY when user manually toggled the theme in Settings
+// If absent → system theme is used and followed dynamically
+const STORAGE_KEY_DARK_OVERRIDE = "@studybuddy:darkModeOverride";
 const STORAGE_KEY_HC = "@studybuddy:highContrast";
 const STORAGE_KEY_FONT = "@studybuddy:fontScale";
 
@@ -29,59 +34,90 @@ type ThemeContextType = {
   isDarkMode: boolean;
   isHighContrast: boolean;
   fontScale: FontScale;
+  /** Whether the user has manually overridden system theme */
+  hasThemeOverride: boolean;
   setDarkMode: (v: boolean) => Promise<void>;
   setHighContrast: (v: boolean) => Promise<void>;
   toggleDarkMode: () => Promise<void>;
   toggleHighContrast: () => Promise<void>;
+  /** Reset to system theme, clears manual override */
+  resetToSystemTheme: () => Promise<void>;
   setFontScale: (v: FontScale) => Promise<void>;
   increaseFontScale: () => Promise<void>;
   decreaseFontScale: () => Promise<void>;
-  /** Scale a raw fontSize number by fontScale */
   fs: (size: number) => number;
 };
 
 const ThemeContext = createContext<ThemeContextType | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  // Appearance.getColorScheme() is synchronous — reads system theme immediately
+  const systemColorScheme = useColorScheme();
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(
+    () => Appearance.getColorScheme() === "dark"
+  );
   const [isHighContrast, setIsHighContrast] = useState(false);
   const [fontScale, setFontScaleState] = useState<FontScale>(1.0);
+  // True only when user explicitly toggled theme in Settings
+  const [hasThemeOverride, setHasThemeOverride] = useState(false);
 
+  // On mount: load font/contrast from storage.
+  // Dark mode uses system unless override flag is explicitly set by the user.
   useEffect(() => {
-    async function loadTheme() {
+    async function loadPrefs() {
       try {
-        const [storedDark, storedHC, storedFont] = await Promise.all([
+        const [override, storedDark, storedHC, storedFont] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEY_DARK_OVERRIDE),
           AsyncStorage.getItem(STORAGE_KEY_DARK),
           AsyncStorage.getItem(STORAGE_KEY_HC),
           AsyncStorage.getItem(STORAGE_KEY_FONT),
         ]);
-        if (storedDark !== null) setIsDarkMode(storedDark === "true");
+
+        // Only apply saved dark mode if user explicitly set it via the app toggle
+        if (override === "true" && storedDark !== null) {
+          setIsDarkMode(storedDark === "true");
+          setHasThemeOverride(true);
+        }
+        // Otherwise keep system theme (already set from Appearance.getColorScheme())
+
         if (storedHC !== null) setIsHighContrast(storedHC === "true");
         if (storedFont !== null) {
           const parsed = parseFloat(storedFont) as FontScale;
           if (FONT_SCALE_STEPS.includes(parsed)) setFontScaleState(parsed);
         }
       } catch {}
-
-      try {
-        const dto = await fetchSettings();
-        if (dto.darkMode != null) {
-          setIsDarkMode(dto.darkMode);
-          await AsyncStorage.setItem(STORAGE_KEY_DARK, String(dto.darkMode));
-        }
-        if (dto.highContrast != null) {
-          setIsHighContrast(dto.highContrast);
-          await AsyncStorage.setItem(STORAGE_KEY_HC, String(dto.highContrast));
-        }
-      } catch {}
     }
-    loadTheme();
+    loadPrefs();
   }, []);
 
+  // Follow system theme changes dynamically — only when no manual override
+  useEffect(() => {
+    if (!hasThemeOverride && systemColorScheme != null) {
+      setIsDarkMode(systemColorScheme === "dark");
+    }
+  }, [systemColorScheme, hasThemeOverride]);
+
+  // Called when user manually toggles in Settings
   const applyDark = useCallback(async (value: boolean) => {
     setIsDarkMode(value);
-    try { await AsyncStorage.setItem(STORAGE_KEY_DARK, String(value)); } catch {}
+    setHasThemeOverride(true);
+    try {
+      await AsyncStorage.multiSet([
+        [STORAGE_KEY_DARK, String(value)],
+        [STORAGE_KEY_DARK_OVERRIDE, "true"],
+      ]);
+    } catch {}
     try { await saveSettings({ darkMode: value }); } catch {}
+  }, []);
+
+  // Clears manual override — app returns to following system theme
+  const resetToSystemTheme = useCallback(async () => {
+    setHasThemeOverride(false);
+    const sys = Appearance.getColorScheme() === "dark";
+    setIsDarkMode(sys);
+    try {
+      await AsyncStorage.multiRemove([STORAGE_KEY_DARK, STORAGE_KEY_DARK_OVERRIDE]);
+    } catch {}
   }, []);
 
   const applyHighContrast = useCallback(async (value: boolean) => {
@@ -128,7 +164,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     [isDarkMode, isHighContrast]
   );
 
-  // Helper: scale font size
   const fs = useCallback(
     (size: number) => Math.round(size * fontScale),
     [fontScale]
@@ -140,18 +175,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       isDarkMode,
       isHighContrast,
       fontScale,
+      hasThemeOverride,
       setDarkMode: applyDark,
       setHighContrast: applyHighContrast,
       toggleDarkMode,
       toggleHighContrast,
+      resetToSystemTheme,
       setFontScale: applyFontScale,
       increaseFontScale,
       decreaseFontScale,
       fs,
     }),
-    [theme, isDarkMode, isHighContrast, fontScale, applyDark, applyHighContrast,
-     toggleDarkMode, toggleHighContrast, applyFontScale, increaseFontScale,
-     decreaseFontScale, fs]
+    [theme, isDarkMode, isHighContrast, fontScale, hasThemeOverride,
+     applyDark, applyHighContrast, toggleDarkMode, toggleHighContrast,
+     resetToSystemTheme, applyFontScale, increaseFontScale, decreaseFontScale, fs]
   );
 
   return (

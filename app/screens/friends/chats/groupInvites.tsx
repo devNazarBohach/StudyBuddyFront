@@ -77,7 +77,7 @@ export default function GroupInvitesScreen() {
     return (
       <View style={styles.card}>
         <View style={styles.avatar}>
-          <Ionicons name="people-outline" size={22} color="#222" />
+          <Ionicons name="people-outline" size={22} color={theme.text} />
         </View>
 
         <View style={styles.info}>
@@ -114,7 +114,7 @@ export default function GroupInvitesScreen() {
     <ThemedView style={styles.container}>
       <View style={styles.header}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={28} color="#111" />
+          <Ionicons name="arrow-back" size={28} color={theme.text} />
         </Pressable>
 
         <ThemedText style={styles.title}>Group invitations</ThemedText>
@@ -129,7 +129,7 @@ export default function GroupInvitesScreen() {
         </View>
       ) : invites.length === 0 ? (
         <View style={styles.centerBox}>
-          <Ionicons name="mail-open-outline" size={42} color="#999" />
+          <Ionicons name="mail-open-outline" size={42} color={theme.secondaryText} />
           <ThemedText style={styles.emptyTitle}>No pending invitations</ThemedText>
         </View>
       ) : (
@@ -149,7 +149,7 @@ export default function GroupInvitesScreen() {
 function makeStyles(theme: import('@/constants/theme').AppTheme, fs: (n: number) => number) { return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f7f7f7",
+    backgroundColor: theme.background,
     paddingTop: 56,
     paddingHorizontal: 16,
   },
@@ -168,7 +168,7 @@ function makeStyles(theme: import('@/constants/theme').AppTheme, fs: (n: number)
   title: {
     fontSize: fs(28),
     fontWeight: "700",
-    color: "#111",
+    color: theme.text,
   },
   listContent: {
     paddingBottom: 24,
@@ -254,6 +254,6 @@ function makeStyles(theme: import('@/constants/theme').AppTheme, fs: (n: number)
     marginTop: 12,
     fontSize: fs(18),
     fontWeight: "700",
-    color: "#111",
+    color: theme.text,
   },
 }); }

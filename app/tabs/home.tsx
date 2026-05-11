@@ -118,23 +118,33 @@ async function apiRequest(path: string, options?: RequestInit) {
   });
 
   const text = await res.text();
-  let data: any;
+  let data: any = null;
 
-  try {
-    data = JSON.parse(text);
-  } catch {
-    throw new Error(`Server returned non-JSON: ${text}`);
+  if (text.trim()) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // Server returned non-JSON body
+      if (!res.ok) {
+        throw new Error(`Server error ${res.status}: ${text}`);
+      }
+      // ok response with non-JSON body (e.g. plain "OK") — treat as success
+      return null;
+    }
   }
+
+  // Empty body + ok status — treat as success (204 No Content etc.)
+  if (!text.trim() && res.ok) return null;
 
   if (!res.ok) {
     throw new Error(data?.message || `HTTP ${res.status}`);
   }
 
-  if (!data?.success) {
+  if (data !== null && !data?.success) {
     throw new Error(data?.message || "Request failed");
   }
 
-  return data.data;
+  return data?.data ?? null;
 }
 
 export default function HomeScreen() {
