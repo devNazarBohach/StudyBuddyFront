@@ -14,6 +14,22 @@ const BLOG_CACHE_KEY = "cached_blogs";
 const COMMENT_CACHE_PREFIX = "cached_blog_comments_";
 const MAX_CACHED_BLOGS = 30;
 
+// ─── Mutex ───────────────────────────────────────────────────────────────────
+// Serializes all queue read-modify-write operations to prevent race conditions.
+// Without this, two rapid operations (e.g. edit + delete) can both read the
+// old queue before either write completes and overwrite each other's changes.
+
+let _commentQueueChain: Promise<void> = Promise.resolve();
+
+function withQueueLock(fn: () => Promise<void>): Promise<void> {
+  return (_commentQueueChain = _commentQueueChain
+    .then(fn)
+    .catch((err) => {
+      console.log("QUEUE LOCK ERROR:", err);
+    })
+  );
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type OfflineLikeAction = {
@@ -152,12 +168,19 @@ export async function saveOfflineCommentsList(actions: OfflineCommentAction[]) {
 }
 
 /**
- * Smart queue — handles conflicts:
+ * Smart queue — handles conflicts atomically via mutex:
  * - CREATE then DELETE = remove both
  * - CREATE then UPDATE = merge into CREATE
  * - UPDATE after server comment = replace previous UPDATE
+ *
+ * The mutex (withQueueLock) ensures concurrent calls are serialized:
+ * each read-modify-write completes fully before the next one starts.
  */
-export async function queueOfflineCommentAction(action: OfflineCommentAction) {
+export function queueOfflineCommentAction(action: OfflineCommentAction): Promise<void> {
+  return withQueueLock(() => _doQueue(action));
+}
+
+async function _doQueue(action: OfflineCommentAction): Promise<void> {
   const actions = await getOfflineComments();
   let next = [...actions];
   const id = action.commentId;
@@ -250,10 +273,14 @@ export async function syncOfflineComments(
           { method: "POST" }
         );
       } else if (action.type === "UPDATE") {
-        if (!action.commentId || !action.content?.trim()) continue;
+        if (!action.commentId || !action.content?.trim()) {
+          syncedSomething = true; // invalid action — drop it
+          continue;
+        }
         // Local (negative) comment IDs can't be updated on server — skip
         if (action.commentId < 0) {
           console.log("COMMENT SYNC SKIPPED (local ID UPDATE — was merged into CREATE):", action.commentId);
+          syncedSomething = true; // drop from queue
           continue;
         }
         await apiRequest(
@@ -263,10 +290,14 @@ export async function syncOfflineComments(
           { method: "PUT" }
         );
       } else if (action.type === "DELETE") {
-        if (!action.commentId) continue;
+        if (!action.commentId) {
+          syncedSomething = true; // invalid — drop
+          continue;
+        }
         // Local (negative) comment IDs were never on server — skip
         if (action.commentId < 0) {
           console.log("COMMENT SYNC SKIPPED (local ID DELETE — CREATE was already removed):", action.commentId);
+          syncedSomething = true; // drop from queue
           continue;
         }
         await apiRequest(`/blog/comments/${action.commentId}`, { method: "DELETE" });

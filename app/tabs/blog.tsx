@@ -4,6 +4,7 @@ import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   FlatList,
   Modal,
   Pressable,
@@ -279,6 +280,14 @@ export default function BlogScreen() {
       setPage(0);
       setLastPage(false);
       loadBlogs(0, false);
+
+      // Sync when app comes back to foreground while on this screen
+      const sub = AppState.addEventListener("change", (nextState) => {
+        if (nextState === "active") {
+          loadBlogs(0, false);
+        }
+      });
+      return () => sub.remove();
     }, [])
   );
 

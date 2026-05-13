@@ -14,6 +14,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
   View,
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
@@ -34,6 +35,8 @@ export default function GroupManagementScreen() {
   const [loadingQr, setLoadingQr] = useState(true);
   const [loadingFriends, setLoadingFriends] = useState(true);
   const [invitingUsername, setInvitingUsername] = useState<string | null>(null);
+  const [manualUsername, setManualUsername] = useState("");
+  const [invitingManual, setInvitingManual] = useState(false);
 
   const loadInviteToken = useCallback(async () => {
     try {
@@ -162,6 +165,41 @@ export default function GroupManagementScreen() {
           ) : (
             <ThemedText>No QR available</ThemedText>
           )}
+        </View>
+
+        <ThemedText style={styles.sectionTitle}>Invite by username</ThemedText>
+
+        <View style={styles.manualInviteRow}>
+          <TextInput
+            style={[styles.manualInput, { color: theme.text, borderColor: theme.border }]}
+            placeholder="Enter username..."
+            placeholderTextColor={theme.secondaryText}
+            value={manualUsername}
+            onChangeText={setManualUsername}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Pressable
+            style={[styles.manualBtn, invitingManual && styles.disabledBtn]}
+            disabled={invitingManual || !manualUsername.trim()}
+            onPress={async () => {
+              const username = manualUsername.trim();
+              if (!username) return;
+              try {
+                setInvitingManual(true);
+                await inviteFriend(username);
+                setManualUsername("");
+              } finally {
+                setInvitingManual(false);
+              }
+            }}
+          >
+            {invitingManual ? (
+              <ActivityIndicator size="small" color={theme.onPrimary} />
+            ) : (
+              <ThemedText style={styles.manualBtnText}>Send</ThemedText>
+            )}
+          </Pressable>
         </View>
 
         <ThemedText style={styles.sectionTitle}>Invite friends</ThemedText>
@@ -317,5 +355,37 @@ function makeStyles(theme: import('@/constants/theme').AppTheme, fs: (n: number)
     marginTop: 16,
     textAlign: "center",
     color: theme.secondaryText,
+  },
+
+  manualInviteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 20,
+  },
+  manualInput: {
+    flex: 1,
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    fontSize: fs(15),
+    backgroundColor: theme.card,
+  },
+  manualBtn: {
+    height: 44,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    backgroundColor: theme.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  manualBtnText: {
+    color: theme.onPrimary,
+    fontWeight: "600",
+    fontSize: fs(15),
+  },
+  disabledBtn: {
+    opacity: 0.5,
   },
 }); }
